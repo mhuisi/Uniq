@@ -1,5 +1,13 @@
 import Uniq.IR
 
+instance [ToString α] [ToString β] : ToString (Lean.RBMap α β cmp) where
+  toString map := Id.run do
+    let mut r := "{\n"
+    for ⟨k, v⟩ in map do
+      r := r.append s!"{k}: {v};\n"
+    r := r.append "}"
+    return r
+
 namespace IR.CG
   structure CGNode where
     name    : Const
@@ -7,6 +15,9 @@ namespace IR.CG
     callees : Array Const
     callers : Array Const
     deriving Inhabited
+
+  instance : ToString CGNode where
+    toString cgNode := s!"{cgNode.callers} → {cgNode.name} → {cgNode.callees}"
 
   partial def computeCallees (body : FnBody) : List Const :=
     match body with
@@ -23,7 +34,8 @@ namespace IR.CG
   def computeCallGraph (p : Program) : Lean.RBMap Const CGNode compare := Id.run do
     let mut r := Lean.mkRBMap _ _ _
     for ⟨c, func⟩ in p do
-      r := r.insert c ⟨c, func, (computeCallees func.body).toArray, #[]⟩
+      let callees := computeCallees func.body |>.toArray |>.filter (p.contains ·) -- filter externs
+      r := r.insert c ⟨c, func, callees, #[]⟩
     for ⟨c, cgNode⟩ in r.toList do
       for callee in cgNode.callees do
         let calleeCGNode := r.find! callee
@@ -37,6 +49,9 @@ structure IR.SCC where
   callees   : Array Const
   callers   : Array Const
   deriving Inhabited
+
+instance : ToString IR.SCC where
+  toString scc := s!"{scc.callers} → {scc.component.map (·.name)} → {scc.callees}"
 
 namespace IR.SCC
   open IR.CG
@@ -95,16 +110,29 @@ namespace IR.SCC
       return sccs
     sccs
 
+  section Test
+    def f0 : Function := ⟨1, ilet 1 ≔ iapp 1 @@ #[0]; iret 1⟩
+    def f1 : Function := ⟨1, ilet 1 ≔ iapp 0 @@ #[0]; iret 1⟩
+    def f2 : Function := ⟨1, ilet 1 ≔ iapp 1 @@ #[0]; ilet 2 ≔ iapp 0 @@ #[0]; iret 1⟩
+    def f3 : Function := ⟨1, ilet 1 ≔ iapp 2 @@ #[0]; iret 1⟩
+    def f4 : Function := ⟨1, ilet 1 ≔ iapp 6 @@ #[0]; iret 1⟩
+    def f5 : Function := ⟨1, ilet 1 ≔ iapp 2 @@ #[0]; ilet 2 ≔ iapp 6 @@ #[0]; ilet 2 ≔ iapp 4 @@ #[0]; iret 1⟩
+    def f6 : Function := ⟨1, ilet 1 ≔ iapp 5 @@ #[0]; iret 1⟩
+  
+    #eval IO.println <| computeSCCs <| computeCallGraph <| Lean.RBMap.ofList (.zip (List.range 7) [f0, f1, f2, f3, f4, f5, f6])
+  end Test
+
   def computeRoots (sccs : Lean.RBMap Const SCC compare) : Array Const :=
     sccs.toList.filter (·.2.callers.isEmpty) |>.map (·.1) |>.toArray
 
   partial def sccsInReverseTopologicalSort (sccs : Lean.RBMap Const SCC compare) : Array (Const × SCC) :=
     let rec loop (node : Const) : StateM (Lean.RBTree Const compare × List (Const × SCC)) Unit := do
-      let (done, acc) ← get
+      let (done, _) ← get
       if done.contains node then
         return
       for callee in (sccs.find! node).callees do
         loop callee
+      let (done, acc) ← get
       let done := done.insert node
       let acc := (node, sccs.find! node) :: acc
       set (done, acc)
@@ -114,4 +142,6 @@ namespace IR.SCC
         loop root
     let ⟨_, ⟨_, sorted⟩⟩ := StateT.run loopRoots ⟨Lean.mkRBTree _ _, []⟩
     sorted.toArray.reverse
+
+  #eval IO.println <| sccsInReverseTopologicalSort <| computeSCCs <| computeCallGraph <| Lean.RBMap.ofList (.zip (List.range 7) [f0, f1, f2, f3, f4, f5, f6])
 end IR.SCC

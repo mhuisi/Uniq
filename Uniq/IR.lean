@@ -17,9 +17,19 @@ namespace IR
     | case' (var : Var) (cases : Array (Ctor × Array Var × FnBody))
   deriving Inhabited
 
+  notation "iapp " t1 "@@" t2 => Expr.app t1 t2
+  notation "ipapp " t1 "@@" t2 => Expr.papp t1 t2
+  notation "ivapp " t1 "@@" t2 => Expr.vapp t1 t2
+  notation "ictor " t1 "⟦" t2 "⟧" t3 "@@" t4 => Expr.ctor t1 t2 t3  t4
+  notation "iproj " t1 "#" t2 "@@" t3 => Expr.proj t1 t2 t3
+  notation "iret " t1 => FnBody.ret t1
+  notation "icase " t1 ": " t2 => FnBody.case t1 t2
+  notation "icase' " t1 ": " t2 => FnBody.case' t1 t2
+  notation "ilet " t1 " ≔ " t2 "; " rest => FnBody.«let» t1 t2 rest
+
   structure Function where
-    params : Array Var
-    body   : FnBody
+    arity : Nat
+    body  : FnBody
   deriving Inhabited
 
   abbrev Program    := Lean.RBMap Const Function compare

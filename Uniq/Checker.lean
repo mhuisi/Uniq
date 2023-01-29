@@ -1,4 +1,4 @@
-import Uniq.EscapeAnalysis
+import Uniq.Borrowing
 
 -- TODOs:
 -- remove sorries in functions
@@ -6,10 +6,10 @@ import Uniq.EscapeAnalysis
 
 namespace Checker
   structure StaticContext where
-    program  : IR.Program
-    funTypes : IR.FunTypeMap
-    adtDecls : Types.ADTDeclMap
-    escapees : Lean.RBMap Const (Array IR.EscapeAnalysis.Escapee) compare
+    program        : IR.Program
+    funTypes       : IR.FunTypeMap
+    adtDecls       : Types.ADTDeclMap
+    borrowedParams : Borrowing.BorrowedParamMap
 
   def StaticContext.funType! (Γ : StaticContext) (c : Const) : Array Types.AttrType × Types.AttrType :=
     Γ.funTypes.find! c
@@ -20,7 +20,7 @@ namespace Checker
     types        : Lean.RBMap Var Types.AttrType compare
 
   def Context.funType! (Γ : Context) (c : Const) : Array Types.AttrType × Types.AttrType :=
-    Γ.static.funTypes.find! c
+    Γ.static.funType! c
 
   def Context.nonzero (Γ : Context) (var : Var) : Bool := Id.run do
     let some zeroedFields := Γ.zeroedFields.find? var
@@ -106,26 +106,14 @@ namespace Checker
     else
       .func paramTypes retType
 
-  -- TODO: supply escapee map, check all ! (e.g. static.escapees.find!)
-  def isBorrowedIn (static : StaticContext) (c : Const) (i : Nat) : Bool :=
-    let ⟨params, _⟩ := static.program.find! c
-    let ⟨paramTypes, _⟩ := static.funType! c
-    let funEscapees := static.escapees.find! c
-    let paramEscapes := funEscapees.contains ⟨params[i]!, []⟩
-    let paramTypeShared := paramTypes[i]!.isShared
-    let noFieldsEscape :=
-      if let .adt attr name args := paramTypes[i]! then
-        funEscapees.filter (·.var == params[i]!) |>.all fun escapee =>
-          !Types.isUniqueFieldInADT static.adtDecls sorry name escapee.field
-      else
-        true
-    ! paramEscapes && paramTypeShared && noFieldsEscape
+  def Context.isBorrowedIn (Γ : Context) (c : Const) (i : Nat) : Bool :=
+    Γ.static.borrowedParams.find? c |>.map (·.contains i) |>.getD false
 
   def Context.consumeAllNonBorrowedWhenAppliedTo (Γ : Context) (vars : Array Var) (c : Const) (types : Array Types.AttrType) : Context := Id.run do
     let mut nonBorrowedVars := #[]
     let mut nonBorrowedTypes := #[]
     for i in [0:vars.size] do
-      if ! isBorrowedIn Γ.static c i then
+      if !Γ.isBorrowedIn c i then
         nonBorrowedVars := nonBorrowedVars.push vars[i]!
         nonBorrowedTypes := nonBorrowedTypes.push types[i]!
     Γ.adjoinAll nonBorrowedVars nonBorrowedTypes |>.eraseAllUnique! nonBorrowedVars
@@ -208,14 +196,21 @@ namespace Checker
         let Γ' := Γ'.adjoinAll vars ctor
         check Γ' F retType
 
-  def checkProgram (program : IR.Program) (funTypes : IR.FunTypeMap) (adtDecls : Types.ADTDeclMap) : Bool := Id.run do
+  def checkProgram 
+    (program            : IR.Program) -- missing all extern consts
+    (funTypes           : IR.FunTypeMap) -- complete
+    (adtDecls           : Types.ADTDeclMap) -- missing all extern types
+    (externUniqueFields : Types.ExternUniqueFieldsMap) -- missing some extern types
+    (externEscapees     : IR.EscapeAnalysis.ExternEscapeeMap) -- missing some extern consts
+    : Bool := Id.run do
     for ⟨c, function⟩ in program do
-      let some ⟨paramTypes, retType⟩ := funTypes.find? c
-        | return false
-      let initialTypes := Lean.RBMap.ofList (function.params.zip paramTypes).data
+      let ⟨paramTypes, retType⟩ := funTypes.find! c
+      let initialTypes := Lean.RBMap.ofList ((List.range function.arity).zip paramTypes.data)
       let cg := IR.CG.computeCallGraph program
       let sccs := IR.SCC.computeSCCs cg
-      let typechecks := check ⟨⟨program, funTypes, adtDecls, IR.EscapeAnalysis.run program sccs⟩, {}, initialTypes⟩ function.body retType
+      let escapees := IR.EscapeAnalysis.run program externEscapees sccs
+      let borrowedParams := Borrowing.computeBorrowedParams adtDecls externUniqueFields funTypes escapees
+      let typechecks := check ⟨⟨program, funTypes, adtDecls, borrowedParams⟩, {}, initialTypes⟩ function.body retType
       if !typechecks then
         return false
     return true
