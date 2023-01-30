@@ -1,9 +1,9 @@
 import Uniq.EscapeAnalysis
-  
+
 namespace Borrowing
-  def groupFunEscapeesByParam 
-    (arity       : Nat) 
-    (funEscapees : Array IR.EscapeAnalysis.Escapee) 
+  def groupFunEscapeesByParam
+    (arity       : Nat)
+    (funEscapees : Array IR.EscapeAnalysis.Escapee)
     : Array (Array IR.EscapeAnalysis.Escapee) := Id.run do
     let mut r := mkArray arity #[]
     for escapee in funEscapees do
@@ -12,11 +12,11 @@ namespace Borrowing
 
   abbrev BorrowedParamMap := Lean.RBMap Const (Lean.RBTree Nat compare) compare
 
-  def computeBorrowedParams 
-    (adtDecls           : Types.ADTDeclMap) 
-    (externUniqueFields : Types.ExternUniqueFieldsMap) 
-    (funTypes           : IR.FunTypeMap) 
-    (escapees           : Lean.RBMap Const (Array IR.EscapeAnalysis.Escapee) compare) 
+  def computeBorrowedParams
+    (adtDecls           : Types.ADTDeclMap)
+    (externUniqueFields : Types.ExternUniqueFieldsMap)
+    (funTypes           : IR.FunTypeMap)
+    (escapees           : Lean.RBMap Const (Array IR.EscapeAnalysis.Escapee) compare)
     : BorrowedParamMap := Id.run do
     let mut borrowedParams := Lean.mkRBMap _ _ _
     for ⟨c, paramTypes, _⟩ in funTypes do
@@ -25,7 +25,7 @@ namespace Borrowing
       let funEscapees := groupFunEscapeesByParam paramTypes.size funEscapees
       let mut borrowed := Lean.mkRBTree _ _
       for i in [0:paramTypes.size] do
-        let paramEscapes := funEscapees[i]!.contains ⟨i, []⟩ -- params are vars [0, |arity|)
+        let paramEscapes := funEscapees[i]!.any fun e => e.var == i && e.field == [] -- params are vars [0, |arity|)
         let paramTypeShared := paramTypes[i]!.isShared
         let noFieldsEscape :=
           if let .adt _ name _ := paramTypes[i]! then

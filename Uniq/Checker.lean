@@ -30,11 +30,16 @@ namespace Checker
   def attrApplicableTo (a b : Types.AttrType) : Bool :=
     a.isUnique || a.isShared && b.isShared
 
+  def erasedApplicableToModOuterAttr : Types.AttrType → Bool
+    | .erased _ | .selfVar .. | .typeVar .. | .func .. => true
+    | .adt _ _ args => args.all fun arg => arg.makeShared == arg
+
   partial def typeApplicableTo (a b : Types.AttrType) : Bool := Id.run do
     if !attrApplicableTo a b then
       return false
     match a, b with
-    | .erased _, _ | _, .erased _ => true
+    | .erased _, b => erasedApplicableToModOuterAttr b
+    | _, .erased _ => true
     | .selfVar _ varA, .selfVar _ varB =>
       varA == varB
     | .typeVar varA, .typeVar varB =>
@@ -196,7 +201,7 @@ namespace Checker
         let Γ' := Γ'.adjoinAll vars ctor
         check Γ' F retType
 
-  def checkProgram 
+  def checkProgram
     (program            : IR.Program) -- missing all extern consts
     (funTypes           : IR.FunTypeMap) -- complete
     (adtDecls           : Types.ADTDeclMap) -- missing all extern types
