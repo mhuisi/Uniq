@@ -133,14 +133,6 @@ namespace Types
   def AttrType.isShared : AttrType → Bool := (·.attr == .shared)
   def AttrType.isUnique : AttrType → Bool := (·.attr == .unique)
 
-  inductive FieldTag where
-    | all
-    | only
-
-  structure UniqueField where
-    path : List (Ctor × Proj)
-    tag  : FieldTag
-
   instance : Ord (Ctor × Proj) := lexOrd
 
   abbrev ExternUniqueFieldsTree := Lean.PrefixTree (Ctor × Proj) Unit compare
@@ -168,7 +160,6 @@ namespace Types
           let some externUniqueFields := externUniqueFields.find? adtName
             | return true
           externUniqueFields.isUniqueField (⟨i, j⟩ :: rest)
-
 
     def isUniqueField (adtDecls : ADTDeclMap) (externUniqueFields : ExternUniqueFieldsMap) : AttrType → List (Ctor × Proj) → Bool
       | erased .unique, _ | selfVar .unique _, _ => true
