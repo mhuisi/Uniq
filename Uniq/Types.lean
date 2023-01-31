@@ -8,6 +8,11 @@ namespace Types
     | unique
   deriving BEq, Inhabited
 
+  instance : ToString Attr where
+    toString attr := match attr with
+      | .shared => "!"
+      | .unique => "*"
+
   mutual
     inductive ADT where
       | mk (selfVar : Var) (typeVars : Array Var) (ctors : Array (Array AttrType))
@@ -30,6 +35,16 @@ namespace Types
 
   def ADT.ctors : ADT → Array (Array AttrType)
     |.mk _ _ ctors => ctors
+
+  partial def printAttrType : AttrType → String
+    | .selfVar attr var => toString attr ++ toString var
+    | .typeVar var => toString var
+    | .erased attr => s!"{attr}■"
+    | .adt attr name args => s!"{attr} {name} {args.map (printAttrType ·)}"
+    | .func params ret => s!"!({params.map (printAttrType ·)} → {printAttrType ret})"
+
+  instance : ToString AttrType where
+    toString type := printAttrType type
 
   abbrev ADTDeclMap := Lean.RBMap ADTName ADT compare
 

@@ -124,6 +124,9 @@ namespace Checker
     Γ.adjoinAll nonBorrowedVars nonBorrowedTypes |>.eraseAllUnique! nonBorrowedVars
 
   partial def check (Γ : Context) (body : IR.FnBody) (retType : Types.AttrType) : Bool := Id.run do
+    dbg_trace Γ.types
+    dbg_trace "{body.printHead}"
+    dbg_trace ""
     match body with
     | IR.FnBody.ret var =>
       if !Γ.nonzero var then
@@ -208,6 +211,9 @@ namespace Checker
         let Γ' := Γ'.adjoinAll vars ctor
         check Γ' F retType
 
+  instance [ToString α] : ToString (Lean.RBTree α cmp) where
+    toString tree := toString tree.toArray
+
   def checkProgram
     (program            : IR.Program) -- missing all extern consts
     (funTypes           : IR.FunTypeMap) -- complete
@@ -229,88 +235,92 @@ namespace Checker
 end Checker
 
 section List_get
-    set_option trace.Compiler.result true in
-    def List_get? (xs : List α) (i : Nat) : Option α :=
-      match xs with
-      | [] => none
-      | x :: xs =>
-        match i == 0 with
-        | true  => Option.some x
-        | false => xs.get? i.pred
+  set_option trace.Compiler.result true in
+  def List_get? (xs : List α) (i : Nat) : Option α :=
+    match xs with
+    | [] => none
+    | x :: xs =>
+      match i == 0 with
+      | true  => Option.some x
+      | false => xs.get? i.pred
 
-    /-
-    def IR.EscapeAnalysis.List.get?._redArg xs i : Option lcErased :=
-      cases xs : Option lcErased
-      | List.nil =>
-        let _x.1 := none _;
-        return _x.1
-      | List.cons head.2 tail.3 =>
-        let _x.4 := 0;
-        let _x.5 := Nat.beq i _x.4;
-        cases _x.5 : Option lcErased
-        | Bool.false =>
-          let _x.6 := Nat.pred i;
-          let _x.7 := List.get?._redArg tail.3 _x.6;
-          return _x.7
-        | Bool.true =>
-          let _x.8 := some _ head.2;
-          return _x.8
-    -/
+  /-
+  def IR.EscapeAnalysis.List.get?._redArg xs i : Option lcErased :=
+    cases xs : Option lcErased
+    | List.nil =>
+      let _x.1 := none _;
+      return _x.1
+    | List.cons head.2 tail.3 =>
+      let _x.4 := 0;
+      let _x.5 := Nat.beq i _x.4;
+      cases _x.5 : Option lcErased
+      | Bool.false =>
+        let _x.6 := Nat.pred i;
+        let _x.7 := List.get?._redArg tail.3 _x.6;
+        return _x.7
+      | Bool.true =>
+        let _x.8 := some _ head.2;
+        return _x.8
+  -/
 
-    def getList : Const := 0
-    def mkZero : Const := 1
-    def natEq : Const := 2
-    def predNat : Const := 3
+  def getList : Const := 0
+  def mkZero : Const := 1
+  def natEq : Const := 2
+  def predNat : Const := 3
 
-    def iList : ADTName := 0
-    def iNil : Ctor := 0
-    def iCons : Ctor := 1
-    def iOption : ADTName := 1
-    def iNone : Ctor := 0
-    def iSome : Ctor := 1
-    def iNat : ADTName := 2
-    def iBool : ADTName := 3
+  def iList : ADTName := 0
+  def iNil : Ctor := 0
+  def iCons : Ctor := 1
+  def iOption : ADTName := 1
+  def iNone : Ctor := 0
+  def iSome : Ctor := 1
+  def iNat : ADTName := 2
+  def iBool : ADTName := 3
 
-    def xsvar : Var := 0
-    def ivar : Var := 1
-    def nonevar : Var := 2
-    def head : Var := 3
-    def tail : Var := 4
-    def zero : Var := 5
-    def eqr : Var := 6
-    def predr : Var := 7
-    def recr : Var := 8
-    def somevar : Var := 9
+  def xsvar : Var := 0
+  def ivar : Var := 1
+  def nonevar : Var := 2
+  def head : Var := 3
+  def tail : Var := 4
+  def zero : Var := 5
+  def eqr : Var := 6
+  def predr : Var := 7
+  def recr : Var := 8
+  def somevar : Var := 9
 
-    def iget? : IR.FnBody :=
-      icase' xsvar: #[
-        (iNil, #[],
-          ilet nonevar ≔ ictor iOption⟦#[.erased .shared]⟧iNone @@ #[];
-          iret nonevar),
-        (iCons, #[head, tail],
-          ilet zero ≔ iapp mkZero @@ #[];
-          ilet eqr ≔ iapp natEq @@ #[ivar, zero];
-          icase eqr: #[
-            ilet predr ≔ iapp predNat @@ #[ivar];
-            ilet recr ≔ iapp getList @@ #[tail, predr];
-            iret recr,
-            ----
-            ilet somevar ≔ ictor iOption⟦#[.erased .shared]⟧iSome @@ #[head];
-            iret somevar
-          ])
-      ]
-
-    def program : IR.Program := Lean.RBMap.ofList [(getList, ⟨2, iget?⟩)]
-    def funTypes : IR.FunTypeMap := Lean.RBMap.ofList [
-      (getList, #[.adt .unique iList #[.erased .unique], .adt .shared iNat #[]], .erased .unique),
-      (mkZero, #[], .adt .unique iNat #[]),
-      (natEq, #[.adt .shared iNat #[], .adt .shared iNat #[]], .adt .shared iBool #[]),
-      (predNat, #[.adt .shared iNat #[]], .adt .shared iNat #[])
+  def iget? : IR.FnBody :=
+    icase' xsvar: #[
+      (iNil, #[],
+        ilet nonevar ≔ ictor iOption⟦#[.erased .shared]⟧iNone @@ #[];
+        iret nonevar),
+      (iCons, #[head, tail],
+        ilet zero ≔ iapp mkZero @@ #[];
+        ilet eqr ≔ iapp natEq @@ #[ivar, zero];
+        icase eqr: #[
+          ilet predr ≔ iapp predNat @@ #[ivar];
+          ilet recr ≔ iapp getList @@ #[tail, predr];
+          iret recr,
+          ----
+          ilet somevar ≔ ictor iOption⟦#[.erased .shared]⟧iSome @@ #[head];
+          iret somevar
+        ])
     ]
-    def adtDecls : Types.ADTDeclMap := Lean.RBMap.ofList [
-      (iList, .mk 0 #[1] #[#[], #[.typeVar 1, .selfVar .shared 0]]),
-      (iOption, .mk 0 #[1] #[#[], #[.typeVar 1]])
-    ]
-    def externUniqueFields : Types.ExternUniqueFieldsMap := Lean.RBMap.empty
-    def externEscapees : IR.EscapeAnalysis.ExternEscapeeMap := Lean.RBMap.empty
+
+  def program : IR.Program := Lean.RBMap.ofList [(getList, ⟨2, iget?⟩)]
+  def funTypes : IR.FunTypeMap := Lean.RBMap.ofList [
+    (getList, #[.adt .unique iList #[.erased .shared], .adt .shared iNat #[]], .adt .shared iOption #[.erased .shared]),
+    (mkZero, #[], .adt .unique iNat #[]),
+    (natEq, #[.adt .shared iNat #[], .adt .shared iNat #[]], .adt .shared iBool #[]),
+    (predNat, #[.adt .shared iNat #[]], .adt .shared iNat #[])
+  ]
+  def adtDecls : Types.ADTDeclMap := Lean.RBMap.ofList [
+    (iList, .mk 0 #[1] #[#[], #[.typeVar 1, .selfVar .unique 0]]),
+    (iOption, .mk 0 #[1] #[#[], #[.typeVar 1]])
+  ]
+  def externUniqueFields : Types.ExternUniqueFieldsMap := Lean.RBMap.empty
+  def externEscapees : IR.EscapeAnalysis.ExternEscapeeMap := Lean.RBMap.ofList [
+    (natEq, #[])
+  ]
+
+  #eval Checker.checkProgram program funTypes adtDecls externUniqueFields externEscapees
 end List_get
