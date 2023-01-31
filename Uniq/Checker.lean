@@ -181,7 +181,9 @@ namespace Checker
           return false
         let .adt attr adtName typeArgs := Γ.types.find! x
           | return false
-        let field := substitutedCtors Γ.static adtName typeArgs |>.get! i |>.get! j
+        let mut field := substitutedCtors Γ.static adtName typeArgs |>.get! i |>.get! j
+        if attr matches .shared then
+          field := field.makeShared
         let Γ' := Γ.zero attr field.attr x i j
         let Γ' := Γ'.adjoin var field
         return check Γ' rest retType
@@ -192,12 +194,17 @@ namespace Checker
     | IR.FnBody.case' var cases =>
       if !Γ.nonzero var then
         return false
-      let some (Types.AttrType.adt _ name params) := Γ.types.find? var
+      let some (Types.AttrType.adt attr name params) := Γ.types.find? var
         | return false
       let ctors := substitutedCtors Γ.static name params
       let Γ' := Γ.eraseIfUnique! var
       return cases.zip ctors |>.all fun ⟨case, ctor⟩ =>
         let ⟨_, vars, F⟩ := case
+        let ctor := ctor.map fun field =>
+          if attr matches .shared then
+            field.makeShared
+          else
+            field
         let Γ' := Γ'.adjoinAll vars ctor
         check Γ' F retType
 

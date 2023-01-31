@@ -315,7 +315,7 @@ Z; Γ, [y : τ_field(A [τ_arg], [τ_arg])] ⊢ let x = (A [τ_arg]).ctorᵢ [y]
 Let-Proj
   γ(A) = μ x_κ_adt. [c]
   [c]ᵢ = [τ_field] → *x_κ_adt
-  ¬ Z(y, i, j)
+  ¬ Z(y, i, j) -- TODO: make shared
   zero(Z, y, i, j, m A [τ_arg]); Γ, y : m A [τ_arg], x : [τ_field]ⱼ(A [τ_arg], [τ_arg]) ⊢ F : τ_ret'
 Z; Γ, y : m A [τ_arg] ⊢ let x = projᵢⱼ y; F : τ_ret'
 
@@ -327,6 +327,6 @@ Z; Γ, x : m A [τ_arg] ⊢ case x of [F] : τ_ret'
 Case'
   nonzero(Z, x)
   γ(A) = μ x_κ_adt. [c]
-  [c]ᵢ = [τ_field] → *x_κ_adt
+  [c]ᵢ = [τ_field] → *x_κ_adt -- TODO: make shared
   [Z; Γ, [y : τ_field(A [τ_arg], [τ_arg])] ⊢ F : τ_ret']
 Z; Γ, x : m A [τ_arg] ⊢ case' x of [ctorᵢ [y] ⇒ F] : τ_ret'
