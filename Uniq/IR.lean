@@ -6,7 +6,7 @@ namespace IR
     | app (c : Const) (args : Array Var)
     | papp (c : Const) (args : Array Var)
     | vapp (x y : Var)
-    | ctor (adtName : ADTName) (typeParams : Array Types.AttrType) (ctor : Ctor) (params : Array Var)
+    | ctor (adtName : ADTName) (typeParams : Array (Option Types.AttrType)) (ctor : Ctor) (params : Array Var)
     | proj (ctor : Ctor) (proj : Proj) (var : Var)
   deriving Inhabited
 

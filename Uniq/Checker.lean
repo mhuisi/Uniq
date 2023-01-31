@@ -170,14 +170,27 @@ namespace Checker
         let varType := determinePappReturnType restParamTypes funRetType
         let Γ' := Γ'.adjoin var varType
         return check Γ' rest retType
-      | IR.Expr.ctor adtName typeArgs ctorIdx args =>
+      | IR.Expr.ctor adtName explicitParamTypes ctorIdx args =>
         if !args.all Γ.nonzero then
           return false
-        let ctor := substitutedCtors Γ.static adtName typeArgs |>.get! ctorIdx
+        let adtDecl := Γ.static.adtDecls.find! adtName
+        let ctor := adtDecl.ctors.get! ctorIdx
+        let mut inferredParamTypes := Lean.RBMap.empty
+        for ⟨arg, field⟩ in args.zip ctor do
+          let some foundType := Γ.types.find? arg
+            | return false
+          let some unifiedVars := foundType.unifyWith field
+            | return false -- not unifiable => not applicable
+          let some merged := Types.mergeUnifiedVars inferredParamTypes unifiedVars
+            | return false -- conflicting variable assignments
+          inferredParamTypes := merged
+        let some argTypes := adtDecl.computeCtorParamTypes explicitParamTypes inferredParamTypes
+          | return false -- one param type was neither provided nor could be inferred
+        let ctor := adtDecl.subst adtName argTypes |>.ctors.get! ctorIdx
         if !Γ.canApplyAll args ctor then
           return false
         let Γ' := Γ.consumeAllWhenAppliedTo args ctor
-        let Γ' := Γ'.adjoin var (.adt .unique adtName typeArgs)
+        let Γ' := Γ'.adjoin var (.adt .unique adtName argTypes)
         return check Γ' rest retType
       | IR.Expr.proj i j x =>
         if Γ.isZeroed x i j then
@@ -291,7 +304,7 @@ section List_get
   def iget? : IR.FnBody :=
     icase' xsvar: #[
       (iNil, #[],
-        ilet nonevar ≔ ictor iOption⟦#[.erased .shared]⟧iNone @@ #[];
+        ilet nonevar ≔ ictor iOption⟦#[some <| .erased .shared]⟧iNone @@ #[];
         iret nonevar),
       (iCons, #[head, tail],
         ilet zero ≔ iapp mkZero @@ #[];
@@ -301,14 +314,14 @@ section List_get
           ilet recr ≔ iapp getList @@ #[tail, predr];
           iret recr,
           ----
-          ilet somevar ≔ ictor iOption⟦#[.erased .shared]⟧iSome @@ #[head];
+          ilet somevar ≔ ictor iOption⟦#[none]⟧iSome @@ #[head];
           iret somevar
         ])
     ]
 
   def program : IR.Program := Lean.RBMap.ofList [(getList, ⟨2, iget?⟩)]
   def funTypes : IR.FunTypeMap := Lean.RBMap.ofList [
-    (getList, #[.adt .unique iList #[.erased .shared], .adt .shared iNat #[]], .adt .shared iOption #[.erased .shared]),
+    (getList, #[.adt .unique iList #[.erased .unique], .adt .shared iNat #[]], .adt .unique iOption #[.erased .unique]),
     (mkZero, #[], .adt .unique iNat #[]),
     (natEq, #[.adt .shared iNat #[], .adt .shared iNat #[]], .adt .shared iBool #[]),
     (predNat, #[.adt .shared iNat #[]], .adt .shared iNat #[])

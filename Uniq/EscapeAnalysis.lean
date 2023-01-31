@@ -12,7 +12,7 @@ namespace IR.EscapeAnalysis
     match xs, ys with
     | [], [] => .eq
     | [], _  => .lt
-    | _, []  => .gt
+    | _,  [] => .gt
     | (x :: xs), (y :: ys) =>
       match Ord.compare x y with
       | .lt => .lt
@@ -225,7 +225,7 @@ namespace IR.EscapeAnalysis
     def iget? : FnBody :=
       icase' xsvar: #[
         (iNil, #[],
-          ilet nonevar ≔ ictor iOption⟦#[.erased .shared]⟧iNone @@ #[];
+          ilet nonevar ≔ ictor iOption⟦#[some <| .erased .shared]⟧iNone @@ #[];
           iret nonevar),
         (iCons, #[head, tail],
           ilet zero ≔ iapp mkZero @@ #[];
@@ -235,7 +235,7 @@ namespace IR.EscapeAnalysis
             ilet recr ≔ iapp getList @@ #[tail, predr];
             iret recr,
             ----
-            ilet somevar ≔ ictor iOption⟦#[.erased .shared]⟧iSome @@ #[head];
+            ilet somevar ≔ ictor iOption⟦#[some <| .erased .shared]⟧iSome @@ #[head];
             iret somevar
           ])
       ]
