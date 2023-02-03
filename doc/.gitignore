@@ -1,0 +1,11 @@
+thesis/build
+present/build
+thesis/thesis.pdf
+thesis/*.log
+present/present.pdf
+*.aux
+*.bbl
+*.blg
+*.out
+*.synctex.gz
+*.toc

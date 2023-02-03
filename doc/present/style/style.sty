@@ -1,0 +1,196 @@
+\mode<presentation>{
+	\usetheme[deutsch, color]{KIT}
+}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{bbding}
+\usepackage[german]{babel}
+\usepackage[babel]{csquotes}
+\usepackage{stmaryrd}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{multirow}
+\usepackage{multicol}
+\usepackage{colortbl}
+\usepackage{booktabs}
+\usepackage{ifthen}
+\usepackage{cancel}
+
+\usetikzlibrary{automata}
+\usetikzlibrary{backgrounds}
+\usetikzlibrary{calc}
+\usetikzlibrary{compiler}
+\usetikzlibrary{decorations.pathreplacing}
+\usetikzlibrary{shapes}
+
+% Definitions for the whole document
+\def\lecturename{Sprachtechnologie und Compiler}
+
+\title{\lecturename}
+\author[Prof.~Snelting]{\texorpdfstring{
+		Prof.~Dr.-Ing.~Gregor~Snelting
+	}
+	{Prof.~Dr.-Ing.~Gregor~Snelting <snelting@ipd.info.uni-karlsruhe.de>}%
+}
+\institute[IPD]{
+	Institut für Programmstrukturen und Datenorganisation, Karlsruher Institut für Technologie (KIT)
+}
+\subtitle{\KIT@author}
+\subject{Vorlesung \lecturename}
+\keywords{Compiler Construction, Optimisation}
+
+\TitleImage[width=\titleimagewd]{bilder/dragon}
+
+\usepackage{style/lecture}
+
+% Stil für programmlistings
+\lstdefinelanguage[cpseudo]{C}[]{C}{
+	morekeywords={foreach, true, false}
+}
+\lstdefinelanguage{asmlang}{
+	morekeywords={cmpl,jne,jmp,subl,je,jg,neg,op,sub,mov},
+	morecomment=[l]{\#},
+	literate=
+		{:=}{{$\leftarrow$}}1
+		{->}{{$\rightarrow$}}1
+}
+
+\lstdefinestyle{asm}{language=asmlang,tabsize=4,columns=fullflexible}
+\lstdefinestyle{x86asm}{tabsize=4,columns=fullflexible,mathescape=false}
+\lstdefinestyle{cexample}{language=[cpseudo]C,tabsize=4,columns=fullflexible,escapechar=@,mathescape=true,showstringspaces=false}
+\lstdefinestyle{antlr}{columns=fullflexible,tabsize=2}
+\lstdefinestyle{bison}{columns=fullflexible,tabsize=2, showstringspaces=false, mathescape=false}
+\lstdefinestyle{pseudoasm}{
+	language=asmlang,
+	literate=
+		{=}{{$\gets$~}}1,
+	tabsize=4,
+	columns=fullflexible
+}
+\lstset{columns=fullflexible,escapechar=@,mathescape=true,showstringspaces=false}
+\newcommand{\cexample}[1]{\lstinputlisting[style=cexample]{#1}}
+
+% rubber hack
+% rubber: alias lstinputlisting input
+
+% Hack um enumerationsitems zu referenzieren (zeichnet im selben Stil)
+\newcommand{\refenumi}[1]{{\def\insertenumlabel{#1}\usebeamertemplate***{enumerate item}}}
+
+\DeclareMathOperator*{\rhoop}{\rho}
+\DeclareMathOperator*{\maxop}{max}
+\DeclareMathOperator*{\absop}{abs}
+\DeclareMathOperator*{\logop}{log}
+
+% Stil für Schemabilder, Einleitung
+\tikzstyle{bigblock}=[draw,minimum height=1.5cm,minimum width=2.5cm,fill=black!20]
+\tikzstyle{smallblock}=[draw,minimum width=2.5cm,fill=black!20]
+\tikzstyle{schemapic}=[node distance=1.5cm,baseline=(current bounding box.west)]
+\newcommand{\lelem}[1]{\textbf{#1}}
+\newcommand{\selem}[1]{\texttt{#1}}
+
+% Definitionen
+\newcommand{\defini}[1]{{\color{blue}#1}}
+\newcommand{\markblue}[1]{{\color{blue}#1}}
+\newcommand{\markred}[1]{{\color{red}#1}}
+\definecolor{darkgreen}{rgb}{0,0.64,0}
+\newcommand{\markgreen}[1]{{\color{darkgreen}#1}}
+\definecolor{lightgray}{rgb}{0.8,0.8,0.8}
+
+% ADT Macros
+\newcommand{\adtop}[1]{{\tt #1}}
+
+% disable additional space after periods.
+\frenchspacing
+
+% Creates a title page for a single lecture
+\font\uzapf=pzcmi at 36pt
+\newcommand{\zusatzstoff}{%
+	\begin{tikzpicture}[remember picture,overlay]
+		\node[xshift=-0.25cm, yshift=-1.25cm, anchor=north east] at (current page.north east) { \color{teal} \uzapf Z };
+	\end{tikzpicture}
+}
+
+\AtBeginLecture{\part{\insertlecture}}
+\AtBeginSection{\frame{\frametitle{Kapitel \insertlecturenumber{}: \insertlecture}\tableofcontents[currentsection]}}
+
+\newcommand{\lecturetitle}{
+	\begin{frame}
+		\begin{centering}
+			{\huge Kapitel \insertlecturenumber{}\par}
+			\begin{beamercolorbox}[sep=8pt,center]{part title}
+				\usebeamerfont{part title}\insertlecture\par
+			\end{beamercolorbox}
+		\end{centering}
+	\end{frame}
+}
+
+\newcommand{\appendixtitle}{
+	\begin{frame}
+		\begin{centering}
+			\begin{beamercolorbox}[sep=8pt,center]{part title}
+				\usebeamerfont{part title}\insertlecture\par
+			\end{beamercolorbox}
+		\end{centering}
+	\end{frame}
+}
+
+\newcommand{\compileroverview}[1][]{
+\begin{center}
+\begin{tikzpicture}
+	\begin{scope}[node distance=2.4cm]
+	\tikzstyle{box}=[text centered, draw, font=\footnotesize,
+			minimum height=1.4cm, text width=1.3cm,
+			font=\small, rounded corners=1pt]
+	\tikzstyle{module}=[box,fill=lightgray]
+	\node      at (0,2) (source) {Quelle};
+	\node[module,right of=source] (lex) {Lexer};
+	\node[module,right of=lex] (parse) {Parser};
+	\node[module,right of=parse] (sem) {Seman. Analyse};
+	\node[below of=sem,node distance=2cm] (d1) {};
+	\node[module,left of=d1,text width=2.1cm,node distance=1.3cm] (opt) {Optimierung};
+	\node[module,left of=opt,text width=2.1cm,node distance=3cm] (trans) {Transformation};
+	\node[left of=trans,node distance=0.5cm] (d2) {};
+	\node[module,below of=d2,node distance=2cm] (instr) {Befehls- auswahl};
+	\node[module,right of=instr,text width=1.8cm] (sched) {Befehls- anordnung};
+	\node[module,right of=sched,text width=1.6cm] (regalloc) {Register- allokation};
+	\node[right of=regalloc] (target) {Ziel};
+	\ifthenelse{\equal{#1}{}}{}{
+		\draw[box,draw=KITgreen,very thick] (#1.north west) rectangle (#1.south east);
+	}
+	\end{scope}
+
+	\node[xshift=-12pt,yshift=12pt] (tl) at (lex.north west) {};
+	\node[xshift= 12pt,yshift=12pt] (tr) at (sem.north east) {};
+	\node[xshift= 12pt,yshift=-2pt] (br) at (regalloc.south east) {};
+	\node[xshift=-12pt,yshift=-2pt] (bl) at (instr.south west) {};
+	\node (tier1) at (tl) {};
+	\node (tier2) at ($(bl)!0.666!(tl)$) {};
+	\node (tier3) at ($(bl)!0.333!(tl)$) {};
+	\draw[draw=gray,thick] (tr) rectangle (tier2);
+	\draw[draw=gray,thick] (tr) rectangle (tier3);
+	\draw[draw=gray,thick] (tr) rectangle (bl);
+
+	\begin{scope}[font=\scriptsize\itshape]
+	\tikzstyle{flow}=[-latex,very thick]
+	\draw[flow] (source) -> node[above] {bytes} (lex);
+	\draw[flow] (lex) -> node[above] {tokens} (parse);
+	\draw[flow] (parse) -> node[above] {AST} (sem);
+	\draw[flow] (sem) -- +(1,0) |- +(0,-2) -> (opt);
+	\draw[flow] (trans) edge[flow,bend left=20] (opt);
+	\draw[flow] (opt)   edge[flow,bend left=20] (trans);
+	\draw[flow] (trans) -- ++(-1.6,0) |- ++(0,-2) -> (instr);
+	\draw[flow] (instr) -> (sched);
+	\draw[flow] (sched) -> (regalloc);
+	\draw[flow] (regalloc) -> (target);
+	\end{scope}
+
+	\begin{scope}[node distance=1cm,font=\footnotesize\bfseries\color{gray}]
+	\node[yshift=-7pt,right=5pt] (front) at (tier1) {Analyse};
+	\node[yshift=-7pt,right=5pt] (middle) at (tier2) {Transformation};
+	\node[yshift=-7pt,right=5pt] (back) at (tier3) {Codegenerierung};
+	\end{scope}
+\end{tikzpicture}
+\end{center}
+}

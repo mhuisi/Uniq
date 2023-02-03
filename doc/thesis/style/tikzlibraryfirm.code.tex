@@ -1,0 +1,27 @@
+% Colors
+\definecolor{firmBlue}     {rgb}{0.6,  0.6, 1   }
+\definecolor{firmCyan}     {rgb}{0.8,  1,   1   }
+\definecolor{firmDarkBlue} {rgb}{0.4,  0.4, 1   }
+\definecolor{firmGreen}    {rgb}{0.42, 1,   0.42}
+\definecolor{firmDarkGreen}{rgb}{0,    0.5, 0   }
+\definecolor{firmRed}      {rgb}{1,    0.6, 0.6 }
+\definecolor{firmViolet}   {rgb}{0.5,  0,   0.5}
+\definecolor{firmYellow}   {rgb}{1,    1,   0.6 }
+
+% Nodes
+\tikzstyle{graph}      = [fill=lightgray]
+\tikzstyle{firm}       = [draw, fill=white]
+\tikzstyle{block}      = [draw, fill=yellow]
+\tikzstyle{const}      = [draw, fill=firmCyan]
+\tikzstyle{control}    = [draw, fill=firmRed]
+\tikzstyle{memory}     = [draw, fill=firmBlue]
+\tikzstyle{phi}        = [draw, fill=green]
+\tikzstyle{proj}       = [draw, fill=firmYellow]
+\tikzstyle{start}      = [draw, fill=firmDarkBlue]
+
+% Edges
+\tikzstyle{dataDependency}    = [thick, -latex]
+\tikzstyle{controlDependency} = [dataDependency, color=red]
+\tikzstyle{memoryDependency}  = [dataDependency, color=firmDarkBlue]
+\tikzstyle{keep}              = [dataDependency, color=firmViolet]
+\tikzstyle{dependency}        = [dataDependency, color=firmDarkGreen]

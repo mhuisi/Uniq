@@ -1,0 +1,125 @@
+\documentclass{beamer}
+\usetheme[deutsch]{KIT}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{babel}
+\usepackage{tikz,calc,ifthen}
+\usepackage{mathtools}
+\usepackage[normalem]{ulem}
+\usepackage{graphicx}
+
+\usetikzlibrary{positioning,calc,arrows,shapes}
+\tikzset{
+  every node/.style={transform shape},
+  auto,
+  block/.style={align=center,rectangle,draw,minimum height=20pt,minimum width=30pt},
+  >=triangle 60,
+  alt/.code args={<#1>#2#3}{%
+      \alt<#1>{\pgfkeysalso{#2}}{\pgfkeysalso{#3}}
+  },
+  beameralert/.style={alt=<#1>{color=green!80!black}{}},
+  mythick/.style={line width=1.4pt}
+}
+
+\newcommand*{\maxwidthofm}[2]{\maxof{\widthof{$#1$}}{\widthof{$#2$}}}
+\newcommand<>*{\robustaltm}[2]{
+  \alt#3
+  {\mathmakebox[\maxwidthofm{#1}{#2}]{#1}\vphantom{#1#2}}
+    {\mathmakebox[\maxwidthofm{#1}{#2}]{#2}\vphantom{#1#2}}
+}
+
+\newcommand<>*{\nodealert}[1]{\only#2{\draw[overlay,mythick,color=green!80!black] (#1.north west) rectangle (#1.south east)}}
+
+\title{Evaluation of Randomized Algorithms}
+\author{Alice Müller}
+\subtitle{\insertauthor}
+\institute[IPD]{Lehrstuhl Programmierparadigmen, IPD Snelting}
+\date{29.10.2013}
+\KITtitleimage{cover.png}
+
+\begin{document}
+
+\begin{frame}
+  \maketitle
+\end{frame}
+
+\begin{frame}{Struktur}
+\begin{enumerate}
+  \item Beginne \textbf{nicht} mit einer Übersicht/Agenda/Gliederung/etc
+  \item Ein einführendes Beispiel um das Problem zu erklären
+  \item Beispielhaft den eigenen Lösungsansatz erklären
+  \item Lösung im Allgemeinen erklären
+  \item Evaluation und verwandte Arbeiten präsentieren
+  \item Zusammenfassungsfolie als Abschluss
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Inhalt}
+Idealerweise ein durchgehendes Beispiel benutzen
+mit dem man sowohl das Problem, die Lösung, und evtl. Randfälle erklären kann.
+\vfill
+
+Der Erfahrung nach braucht man 1-2 Minuten pro Folie.
+Für einen 20 Minuten Vortrag sollten es also weniger als 20 Folien sein.
+\vfill
+
+Arbeitsaufwand knapp quantifizieren (Lines of Code, Anzahl Theoreme)
+\vfill
+
+Was nicht im Vortrag kommt geht unter!
+Die Existenz nicht vortrags-fähiger Teile der Arbeit
+(wie etwa länglicher Beweise) zumindest erwähnen.
+\end{frame}
+
+\begin{frame}{Vorkenntnisse}
+Was man bei uns am Lehrstuhl voraussetzen kann:
+\vspace{20pt}
+\begin{itemize}
+  \item libFirm/SSA Form auf einer Folie kurz einführen
+  \item C, Java, Haskell, Lambda ist bekannt
+  \item X10, ML, Agda, Scala kurz einführen
+  \item Andere Programmiersprachen gut motivieren
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Vortrag}
+Alleine Üben! Daheim vor dem Spiegel üben.
+Einen Vortrag nur alleine, aber im Stehen und laut sprechend,
+vorzutragen ist meist schon lehrreich im Vergleich
+zu stillem Folienbasteln.
+\vfill
+
+Frei sprechen (oder zumindest die Illusion wahren)
+\vfill
+
+Laut und deutlich sprechen (leider häufiges Informatikerproblem)
+\vfill
+
+Live vorführen von implementierten, sofern gut geübt, macht Eindruck
+\vfill
+
+Zeitrahmen \textbf{nicht überziehen}!
+Zwischenfragen gehen natürlich nicht vom Zeitkonto ab
+\vfill
+
+Die Folien dem Betreuer zur Durchsicht geben
+\end{frame}
+
+\begin{frame}{Bewertung}
+\begin{itemize}
+  \item Ca.\ 20\% der Gesamtnote kommen durch
+    kommunikative soft-skill Aspekte zustande.
+  \item Ein schlechter Vortrag kann leicht die Note um 0.7 nach unten ziehen.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Links}
+\begin{itemize}
+  \item \href{http://beza1e1.tuxen.de/articles/technical_presentation.html}{9 Tips how to give a technical presentation}
+  \item \href{http://andreas-zeller.blogspot.de/2013/10/summarizing-your-presentation-with.html}{Summarizing your presentation with miniature slides}
+  \item \href{https://www.cs.cmu.edu/~kayvonf/misc/cleartalktips.pdf}{Tips for Giving Clear Talks}
+\end{itemize}
+\end{frame}
+
+\end{document}

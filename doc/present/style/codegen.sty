@@ -1,0 +1,15 @@
+\usetikzlibrary{backgrounds}
+\usetikzlibrary{patterns}
+\usetikzlibrary{calc}
+
+\newcommand{\cgop}[1]{{\bf #1}}
+\newcommand{\cgleaf}[1]{{\it #1}}
+
+% select a region
+% \tikzselect{<color>}{<coordinates>}
+%		example:
+%		\tikzselect{blue!15}{(add.south west) (add.south east) (bottom.south)}
+\newcommand{\codeselect}[2]{{
+\fill[smooth cycle, #1]
+	plot coordinates{#2} -- cycle;
+}}

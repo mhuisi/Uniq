@@ -1,0 +1,68 @@
+\DeclareMathOperator{\inh}{inh}
+\DeclareMathOperator{\syn}{syn}
+\DeclareMathOperator{\DDP}{DDP}
+\DeclareMathOperator{\NDDP}{NDDP}
+\DeclareMathOperator{\AF}{AF}
+\DeclareMathOperator{\IDS}{IDS}
+\DeclareMathOperator{\IDP}{IDP}
+\DeclareMathOperator{\DP}{DP}
+\newcommand{\attrib}[1]{\ensuremath{\mathit{#1}}}
+\newcommand{\method}[1]{\text{\texttt{#1}}}
+\newcommand{\LAG}{\mathrm{LAG}}
+\newcommand{\PAG}{\mathrm{PAG}}
+\newcommand{\OAG}{\mathrm{OAG}}
+
+\lstdefinelanguage{aglang}{
+	morekeywords={rule, attribution, new, append, condition, if, then, else, end,
+	              instanceof},
+	morestring=[b]',
+	literate={::=}{{$\rightarrow$ }}3
+}
+
+% AG programmiersprachenstil
+\lstdefinestyle{ag}{
+	language=aglang,
+	tabsize=2,
+	basicstyle=\scriptsize,
+	columns=fullflexible
+}
+
+\tikzstyle{attr}=[inner sep=0]
+\tikzstyle{attrNodeBase}=[draw, fill=black!20]
+\tikzstyle{attrNode}=[attrNodeBase, matrix, column sep=1ex, every node/.style={attr}]
+\tikzstyle{hiddenattrNode}=[attrNodeBase, matrix, column sep=1ex, every node/.style={attr}]
+
+\newcommand{\agrule}[3][2em]{
+	\begin{pgfonlayer}{background}
+    	\fill[draw=black, fill=blue!20] (#2.south west) -- ([xshift=-#1]#3.north west) -- ([xshift=#1]#3.north east) -- (#2.south east);
+    \end{pgfonlayer}
+}
+
+\newcommand{\agmultirule}[4][2em]{
+	\begin{pgfonlayer}{background}
+		\fill[draw=black, fill=blue!20] (#2.south west) -- ([xshift=-#1]#3.north west) -- ([xshift=#1]#4.north east) -- (#2.south east);
+    \end{pgfonlayer}
+}
+
+\newcommand{\agphantomrule}[3][1ex]{
+	\begin{pgfonlayer}{background}
+		\fill[draw=black, fill=blue!20] (#2.south west) -- ([xshift=-#1]#2.west |- #3.north) -- ([xshift=#1]#2.east |- #3.north) -- (#2.south east);
+    \end{pgfonlayer}
+}
+
+% select a region
+% \tikzselect{<coordinates>}{<pattern>}
+%		example:
+%		\tikzselect{(add.south west) (add.south east) (bottom.south)}{north east lines}
+\newcommand{\tikzselect}[3][black!50]{{
+\fill[smooth cycle, pattern=#3, pattern color=#1]
+	plot coordinates{#2} -- cycle;
+}}
+
+% place an inline node that is remembered for tikz
+% \tikzremember[<coords>]{<node name>}{<content>}
+%		see: http://www.texample.net/tikz/examples/oxidation-and-reduction/
+%		note: you may have to compile twice
+\newcommand{\tikzremember}[3][0,11pt]{{
+	\tikz[remember picture,overlay]{\node (#2) at (#1) {#3};}
+}}

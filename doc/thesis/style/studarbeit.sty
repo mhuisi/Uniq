@@ -1,0 +1,142 @@
+\usepackage{lmodern}
+\usepackage{etoolbox}
+\usepackage{microtype}
+
+\usepackage[ngerman,english]{babel}     % use this if your thesis is in English -- last option specifies the default language
+
+\usepackage{tikz}
+\usetikzlibrary{positioning,calc,arrows}
+\usepackage{listings}
+
+\newcommand{\thesistype}[1]{\newcommand{\thethesistype}{#1}}
+\newcommand{\zweitgutachter}[1]{\newcommand{\thezweitgutachter}{#1}}
+\newcommand{\betreuer}[1]{\newcommand{\thebetreuer}{#1}}
+\newcommand{\zweitbetreuer}[1]{\newcommand{\thezweitbetreuer}{#1}}
+\newcommand{\coverimage}[1]{\newcommand{\thecoverimage}{#1}}
+\newcommand{\abgabedatum}[1]{\newcommand{\theabgabedatum}{#1}}
+
+\makeatletter
+\newcommand{\myBCOR}{\the\ta@bcor}
+\makeatother
+
+% \usepackage{minted} % for code formatting -- must be loaded before csquotes
+\usepackage{csquotes} % provides \enquote{} macro for "quotes"
+
+\usepackage{amsmath}
+% \usepackage{amsthm} % load this before cleveref to get correctly named references to custom theorems
+\usepackage[labelformat=simple]{subfig}
+\usepackage[font={sf},margin=10pt,labelfont=bf]{caption}
+\usepackage{booktabs}
+% \usepackage{algorithm2e} % load before hyperref for correct links to line numbers with cleveref
+\usepackage[bookmarks=true,pdfusetitle=true]{hyperref}
+\hypersetup{
+  pdfdisplaydoctitle=true,
+  %colorlinks=true, % use this if the boxes around links bother you ;)
+  pdfstartpage=3,
+}
+\usepackage{hypcap} % hyperref fix
+\usepackage[nameinlink,noabbrev]{cleveref} % better references
+
+% TODO fancyhdr should not be necessary with KOMA script
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhead{} % clear all header fields
+\fancyhead[LE,RO]{\slshape \rightmark}
+\fancyfoot{} % clear all footer fields
+\fancyfoot[LE,RO]{\thepage}
+
+\definecolor{todo}{rgb}{0.8,0,0}
+\newcommand\tod[1]{\texttt{\textcolor{todo}{#1}}}
+\newcommand\todo[1]{\par\texttt{\textcolor{todo}{#1}}\par}
+
+%%% Title Page %%%
+
+\usepackage{titling} % for \thetitle command
+\newcommand{\mytitlepage}{
+  \begin{titlepage}
+    \begin{tikzpicture}[remember picture,overlay]
+      % Seitenrahmen zeichnen.
+      \draw[semithick,rounded corners=0.5cm]
+        ($(current page.north west) + ( 1cm,-1cm) + (\myBCOR,0)$) --
+        ($(current page.north east) + (-1cm,-1cm)$) --
+        ($(current page.south east) + (-1cm, 1.5cm)$);
+
+      \draw[semithick,rounded corners=0.5cm]
+        ($(current page.south east) + (-1cm, 1.5cm)$) --
+        ($(current page.south west) + ( 1cm, 1.5cm) + (\myBCOR,0)$) --
+        ($(current page.north west) + ( 1cm,-1cm) + (\myBCOR,0)$);
+
+      % Logo einbinden.
+      \node[anchor=north west] (logo) at
+        ($(current page.north west) + (1.75cm,-1.5cm) + (\myBCOR,0)$)
+      {
+        \includegraphics[width=4cm]{style/KITLogo}
+      };
+
+      % Institut / Lehrstuhl.
+      \node[anchor=east] at ($(current page.east |- logo.east) + (-1.75cm,0cm)$)
+      {
+        \begin{minipage}{5.2cm}
+          \begin{flushleft}
+            \footnotesize{}Institut für Programmstrukturen und Datenorganisation (IPD) \\
+            \vspace{6pt}
+            Lehrstuhl Prof.~Dr.-Ing.~Snelting
+          \end{flushleft}
+        \end{minipage}
+      };
+
+      \node (title) at ($(current page.center |- logo.south) + (\myBCOR/2, -4cm)$)
+      {
+        % Korrekter Zeilenabstand etc. durch Minipage.
+        \begin{minipage}{12cm}
+          \begin{center}
+            \huge\textbf{\thetitle}
+          \end{center}
+        \end{minipage}
+      };
+
+      \node[below=1.05cm of title.south]   (prename)  { \thethesistype\ von };
+      \node[below=0.75cm of prename.south] (name)     { \Large{}\textbf{\theauthor} };
+      \node[below=0.8cm  of name.south]    (postname) { an der Fakultät für Informatik };
+
+      \node[below=0.5cm  of postname.south] (bildchen) { \includegraphics[width=0.8\textwidth]{\thecoverimage}
+                                                      };
+
+      \node[below=0.4cm of bildchen.south] (table)
+      {
+        \begin{tabular}{ll}
+          \textbf{Erstgutachter:}           & Prof.~Dr.-Ing.~Gregor~Snelting \\[5pt]
+          \textbf{Zweitgutachter:}          & \thezweitgutachter\\[5pt]
+          \ifcsdef{thezweitbetreuer}{
+            \textbf{Betreuende Mitarbeiter:}  & \thebetreuer \\[5pt]
+                                              & \thezweitbetreuer\\[1.5em]
+         }{
+          \textbf{Betreuender Mitarbeiter:}  & \thebetreuer \\[2em]
+          }
+          \textbf{Abgabedatum:}             & \theabgabedatum
+        \end{tabular}
+      };
+
+      % Fußzeile, unten zentriert.
+      \node[anchor=south] (footnote) at ($(current page.center |- current page.south) + (0cm, 0.65cm)$)
+      {
+        \tiny{}KIT -- Die Forschungsuniversität in der Helmholtz-Gemeinschaft
+        \hspace{0.5cm}
+        \Large{}\textbf{www.kit.edu}
+      };
+    \end{tikzpicture}
+  \end{titlepage}
+}
+
+%%% TikZ helper %%%
+
+\usetikzlibrary{patterns}
+\pgfdeclarelayer{background}
+\pgfdeclarelayer{foreground}
+\pgfsetlayers{background,main,foreground}
+
+\newcommand{\tikzselect}[3][black!20]{{
+  \fill[color=#1] plot[smooth cycle, tension=#2] coordinates{#3} -- cycle;
+}}
+
+\recalctypearea % necessary if e.g. somebody changes fonts

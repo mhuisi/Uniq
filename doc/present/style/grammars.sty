@@ -1,0 +1,41 @@
+\DeclareMathOperator{\ankop}{Ank}
+\DeclareMathOperator{\basis}{basis}
+\DeclareMathOperator{\tbasis}{next}
+\DeclareMathOperator{\core}{kern}
+\DeclareMathOperator{\SHIFT}{SHIFT}
+\DeclareMathOperator{\RED}{RED}
+\DeclareMathOperator{\HALT}{HALT}
+\DeclareMathOperator{\FEHLER}{FEHLER}
+% nicht-Terminal
+\newcommand{\nterm}[1]{\ensuremath{\mathit{#1}}}
+% Terminal
+\newcommand{\term}[1]{\text{\tt \bf #1}}
+% Punkt in Situation
+\newcommand{\idot}{\ensuremath{\cdot}}
+
+\newcommand{\first}[1]{\ensuremath{\mathrm{Anf}_{#1}}}
+\newcommand{\eff}[1]{\ensuremath{\mathrm{Anf}'_{#1}}}
+\newcommand{\follow}[1]{\ensuremath{\mathrm{Folge}_{#1}}}
+\newcommand{\LL}[1][]{\ensuremath{\mathrm{LL}\ifthenelse{\equal{#1}{}}{}{(#1)}}}
+\newcommand{\SLL}[1][]{\ensuremath{\mathrm{SLL}\ifthenelse{\equal{#1}{}}{}{(#1)}}}
+\newcommand{\LR}[1][]{\ensuremath{\mathrm{LR}\ifthenelse{\equal{#1}{}}{}{(#1)}}}
+\newcommand{\SLR}[1][]{\ensuremath{\mathrm{SLR}\ifthenelse{\equal{#1}{}}{}{(#1)}}}
+\newcommand{\LALR}[1][]{\ensuremath{\mathrm{LALR}\ifthenelse{\equal{#1}{}}{}{(#1)}}}
+\newcommand{\GOTO}{\mathrm{GOTO}}
+\newcommand{\ACTION}{\mathrm{ACTION}}
+\newcommand{\EOF}{\term{\#}}
+
+\lstdefinelanguage{grammar}{
+	morekeywords={bez},
+	mathescape=true,
+	keywordstyle={\ttfamily \bfseries},
+	literate={->}{{ $\to$ }}3 {=>}{{ $\Rightarrow$ }}3 {eps}{{ $\varepsilon$ }}3 {^*}{{$^*$}}1 {@}{{\idot}}2
+}
+
+\lstdefinelanguage{emp_grammar}{
+	color={blue}
+	morekeywords={bez},
+	mathescape=true,
+	keywordstyle={\ttfamily \bfseries},
+	literate={->}{{ $\to$ }}3 {eps}{{ $\varepsilon$ }}3 {^*}{{$^*$}}1 {@}{{\idot}}2
+}

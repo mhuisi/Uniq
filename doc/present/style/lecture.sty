@@ -1,0 +1,37 @@
+% Lecture macros...
+%
+% Tell rubber about lectures
+% rubber: alias inputlecture input
+%
+% Allows to use \inputlecture on the toplevel tex file. This automatically
+% increases the lecturenumber counter which can be put into the text by
+% \inserlecturenumber
+% Also you can use the command \includeonlylecture on the toplevel to only
+% input some of the lectures, the lecturecounter is unaffected by this
+%
+\newcounter{lecturenumber}
+\renewcommand{\includeonlylecture}[1]{%
+	\def\onlylecture{#1}%
+}
+\includeonlylecture{}
+\newcommand{\inputlecture}[1]{
+	\def\insertlecturenumber{\arabic{lecturenumber}}
+	\refstepcounter{lecturenumber}
+	\def\tempname{#1}
+	\ifx\onlylecture\empty
+		\input{#1}
+	\else
+		\ifx\onlylecture\tempname
+			\input{#1}
+		\else
+			\relax
+		\fi
+	\fi
+}
+
+\newcommand{\forcelecturenumber}[1]{\setcounter{lecturenumber}{#1}\addtocounter{lecturenumber}{-1}}
+
+\newcommand{\QM}{$QM$}
+\newcommand{\IL}{$IL$}
+\newcommand{\ZM}{$ZM$}
+

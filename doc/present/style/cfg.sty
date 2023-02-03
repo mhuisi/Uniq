@@ -1,0 +1,20 @@
+% Some macros/commands to construct control flow graphs and keep some common
+% terminonlogy like begin and end
+
+\tikzstyle{bblock}=[draw,rounded corners,font=\footnotesize]
+\tikzstyle{cfgpicture}=[>=latex]
+\newcommand{\cfgstart}{{\bfseries Start}}
+\newcommand{\cfgend}{{\bfseries End}}
+\newcommand{\dominates}{\preceq}
+\newcommand{\sdominates}{\prec}
+\newcommand{\pdominates}{\succeq}
+\newcommand{\spdominates}{\succ}
+
+\DeclareMathOperator*{\domop}{dom}
+\DeclareMathOperator*{\idomop}{idom}
+\DeclareMathOperator*{\postdom}{postdom}
+\DeclareMathOperator*{\predop}{pred}
+\DeclareMathOperator*{\succop}{succ}
+\DeclareMathOperator*{\intersectop}{\bigcap}
+\DeclareMathOperator*{\dfnum}{dfnum}
+
