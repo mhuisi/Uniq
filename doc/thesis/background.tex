@@ -1,16 +1,57 @@
 \chapter{Background}\label{sec:background}
 
-In diesem Kapitel landet alles,
-was nicht vom Autor selbst erfunden wurde.
-Einerseits Grundlagen,
-die für das Verständnis der Arbeit notwendig sind.
-Andererseits verwandte Arbeiten,
-wobei bei diesen klar gemacht werden soll,
-inwiefern diese Arbeit darauf aufbaut bzw. etwas anders macht.
+\section{Lean 4 Theorem Prover}
+Lean 4 is a proof assistant and programming language developed primarily by Leonardo de Moura at Microsoft Research and Sebastian Ullrich at KIT with numerous open source contributions by other authors.
 
-Beispiel wäre ein Standardwerk in Sachen SSA-Form
-welches bei uns häufig zitiert wird.
+Up to and including version 3, Lean served primarily only as a proof assistant, i.e. an interactive tool where users can input proofs that are then checked by the proof assistant. Many proof assistants also implement proof-generating automation, so-called ``tactic languages'', to make the task of writing a perfectly formal proof by hand less tedious. In Lean 3, the previous version of Lean, the same term language was used for proofs, theorem statements, definitions, programs, type declarations, specifications, and implementing automation. We will go into some detail on how Lean uses a single unified language for all of these things in \cref{sec:dtt}. For automation, the term language was also evaluated by a separate interpreter for more efficient execution.
 
-Es soll klar werden,
-dass dem Studenten der Stand der Technik bewusst war
-und keine redundante Arbeit gemacht wurde.
+Unfortunately, evaluating the term language using a separate interpreter would still yield inadequate performance, both for implementing more demanding automation and implementing real world programs, which meant that such demanding programs were written in C++ instead and then made available to Lean using a foreign-function interface (FFI). \citep{ullrich_counting_2020}
+
+To improve on this, Lean 4 now implements its own self-hosted compiler toolchain for both a C backend and a work-in-progress LLVM backend, including its own IR, optimization pipeline and custom garbage collection algorithm. Being almost entirely self-hosted, Lean 4 is now also well capable of being used as a general purpose programming language.
+
+Let us now consider some basic examples of Lean 4 code to get a feeling for the language. It should be noted that all of the following can be expressed more succinctly, but that we have chosen not to do so in order to make these snippets more easy to grasp for readers not familiar with Lean.
+\begin{code}
+def List.map (f : α → β) : List α → List β
+  | []      => []
+  | x :: xs => f x :: map f xs
+\end{code}
+\lstinline|List.map| is implemented by recursion on the second argument. The empty list again yields the empty list. If the list is a cons cell, we map the head of the cons cell using \lstinline|f|, recurse on the tail and then build a new cons cell from the results of both.
+\begin{code}
+def List.get? : List α → Nat → Option α
+  | [],      _     => Option.none
+  | x :: _,  0     => Option.some x
+  | _ :: xs, n + 1 => List.get? xs n
+\end{code}
+\lstinline|List.get?| is implemented by recursion both on the provided list and the index provided in the second argument. It yields an \lstinline|Option α|, i.e. either \lstinline|Option.some α| if the index is in the list, or \lstinline|Option.none| otherwise.
+\begin{code}
+def Array.groupBy (p : α → α → Ordering) (xs : Array α)
+  : RBMap α (Array α) p := Id.run do
+  let mut result : RBMap α (Array α) p := RBMap.empty
+  for x in xs do
+    let group := Option.getD (RBMap.find? result x) #[x]
+    result := RBMap.insert result x group
+  return result
+\end{code}
+\lstinline|Array.groupBy| is implemented using an imperative DSL based on do-notation. It takes a relation \lstinline|p| that yields an \lstinline|Ordering|, i.e. whether the first argument is greater than, smaller than or equal to the second argument, as well as the array to group the elements of. It returns a red-black map ordered by \lstinline|p|, where the keys are arbitrary representatives of the group and the values denote groups \lstinline|Array α| of \lstinline|p|-equivalent values. \\
+In order to use do-notation, we need to run the code in a monad. Since we do not intend to accumulate any interesting effects and only use do-notation for its imperative domain-specific language (DSL), we use the \lstinline|Id| monad, entering it using \lstinline|Id.run|. First, we initialize a mutable but empty red-black map, denoting our result. Then, we iterate over every element \lstinline|x| in the provided array and look for a group in the current result that is \lstinline|p|-equivalent to \lstinline|x|. If we find such a group, we store it in \lstinline|group|. Otherwise, we allocate a new group for elements \lstinline|p|-equivalent to \lstinline|x| that already contains \lstinline|x| itself. This case-split is encapsulated within the call to \lstinline|Option.getD| that returns the first element if it was equal to \lstinline|some x| and otherwise returns the second element if it was equal to \lstinline|none|, i.e. \lstinline|RBMap.find?| could not find \lstinline|x| within \lstinline|result|. Then, we insert the new or updated group into our mutable \lstinline|result| map. At the end, we return the accumulated \lstinline|result| map.
+
+This piece of imperative code is implemented as a DSL, i.e. the imperative code is translated to a functional equivalent.
+One may reasonably wonder why one would ever use a purely functional language to then write imperative code, translate it back to purely functional code, only to then compile the result to imperative machine code. But since Lean 4 is also an interactive theorem prover, the answer is simple: Imperative programming can be convenient, but it is easier to use a purely functional programming language for all the domains of proof, specification and writing programs at once, since all the computational effects are already neatly packed away. In fact, if we were to write a proof about \lstinline|Array.groupBy|, the first thing we would likely do is fold away the syntactical imperative layer in order to uncover the purely functional term representing the program, without ever having to think about loop invariants or state.
+
+It should be noted that \lstinline|Array.groupBy| is unexpectedly inefficient. We will resolve this inefficiency in \cref{sec:beans} when it is instrumental to do so.
+
+For the rest of this thesis, we will not treat Lean 4 as a theorem prover, but instead as a purely functional programming language that implements dependent type theory.
+
+\section{Dependent Type Theory}\label{sec:dtt}
+
+\section{Intermediate Representations for Lean 4}
+
+\section{Counting Immutable Beans}\label{sec:beans}
+
+\section{Linear Type Theory}
+
+\section{Quantitative Type Theory}
+
+\section{Uniqueness Type Theory}
+
+\section{Borrowing}

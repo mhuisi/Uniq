@@ -11,6 +11,36 @@
 \usepackage{natbib}
 \usepackage[T1]{fontenc}
 \usepackage{style/studarbeit}
+\usepackage{cleveref}
+
+\def\lstlanguagefiles{lstlean.tex}
+\lstset{language=lean}
+\lstdefinelanguage{ir-if}
+{
+	morekeywords={
+		case,
+		of,
+		ret,
+		proj,
+		let,
+		ctor,
+		pap,
+		inc,
+		dec,
+		reset,
+		reuse,
+		in
+	},
+	morecomment=[l]{--}, % l is for line comment
+}
+
+\lstnewenvironment{ifcode}{\\\minipage{\linewidth}\lstset{xleftmargin=1.48em, language=ir-if}}{\endminipage\hfill\allowbreak}
+\lstnewenvironment{code}{\\\minipage{\linewidth}\lstset{xleftmargin=1.48em}}{\endminipage\hfill\allowbreak}
+
+\definecolor{keywordcolor}{rgb}{0.7, 0.1, 0.1}   % red
+\definecolor{commentcolor}{rgb}{0.4, 0.4, 0.4}   % grey
+\definecolor{symbolcolor}{rgb}{0.0, 0.1, 0.6}    % blue
+\definecolor{sortcolor}{rgb}{0.1, 0.5, 0.1}      % green
 
 \title{Static Uniqueness Analysis for the Lean 4 Theorem Prover}
 \author{Marc Huisinga}
@@ -42,6 +72,12 @@ Dinge auf Englisch
 
 \input{intro.tex}
 \input{background.tex}
+\input{designspace.tex}
+\input{theory.tex}
+\input{implementation.tex}
+\input{evaluation.tex}
+\input{furtherwork.tex}
+\input{relatedwork.tex}
 \input{conclusion.tex}
 
 \bibliographystyle{plainnat}

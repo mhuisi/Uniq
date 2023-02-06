@@ -7,5 +7,7 @@ present/present.pdf
 *.bbl
 *.blg
 *.out
+*.fls
 *.synctex.gz
 *.toc
+*.fdb_latexmk
