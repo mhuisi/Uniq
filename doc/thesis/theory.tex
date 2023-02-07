@@ -1,1 +1,42 @@
 \chapter{Formal description}\label{sec:theory}
+
+\newcommand{\sep}{\ \ |\ \ }
+
+\section{Types}
+\begin{align*}
+  m &\in Modality & &::=\ ! \sep * \\
+  a &\in ADT & &::= \mu\ x^\kappa_\text{adt}.\ [[\tau_\text{field}(x^\kappa_\text{adt}, y_\tau)] \to *x^\kappa_\text{adt}] \\
+  A &\in ADTConst \\
+  \tau &\in AttrType & &::= m\ x^\kappa \sep x^\tau \sep m\ \blacksquare \sep m\ A\ [\tau_\text{arg}] \sep !\ [\tau_\text{param}] \to \tau_\text{ret} \\
+  \gamma &\in ADTDecls & &= ADTConst \rightharpoonup ADT \\
+  \delta_\tau &\in FunTypes & &= Const \rightharpoonup [AttrType] \times AttrType
+\end{align*}
+
+\begin{equation}
+\begin{aligned}
+  propagateWithinShared &: AttrType \to AttrType \\
+  propagateWithinShared&(m\ x^\kappa) &&=\ !\ x^\kappa \\
+  propagateWithinShared&(x^\tau) &&= x^\tau \\
+  propagateWithinShared&(m\ \blacksquare) &&=\ !\ \blacksquare
+\end{aligned}
+\end{equation}
+
+\section{Intermediate Representation}
+
+\begin{align*}
+  x, y, z &\in Var \\
+  i &\in Ctor \\
+  j &\in Proj \\
+  c &\in Const \\
+  e &\in Expr & &::= \textrm{\lstinline|c [y]|}
+    \sep \textrm{\lstinline|pap c [y]|}
+    \sep \textrm{\lstinline|x y|}
+    \sep \textrm{\lstinline|(A [τ?]).ctorᵢ [y]|} \\
+    & & &\quad\ \sep \textrm{\lstinline|projᵢⱼ|} \\
+  F &\in FnBody & &::= \textrm{\lstinline|ret x|}
+    \sep \textrm{\lstinline|let x := e; F|}
+    \sep \textrm{\lstinline|case x of [F]|} \\
+    & & &\quad\ \sep \textrm{\lstinline|case' x of [ctorᵢ [y] ⇒ F]|}\\
+  f &\in Fn & &::= \lambda\ [y].\ F \\
+  \delta &\in Program & &= Const \rightharpoonup Fn
+\end{align*}
