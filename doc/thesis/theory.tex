@@ -3,40 +3,118 @@
 \newcommand{\sep}{\ \ |\ \ }
 
 \section{Types}
-\begin{align*}
-  m &\in Modality & &::=\ ! \sep * \\
-  a &\in ADT & &::= \mu\ x^\kappa_\text{adt}.\ [[\tau_\text{field}(x^\kappa_\text{adt}, y_\tau)] \to *x^\kappa_\text{adt}] \\
-  A &\in ADTConst \\
-  \tau &\in AttrType & &::= m\ x^\kappa \sep x^\tau \sep m\ \blacksquare \sep m\ A\ [\tau_\text{arg}] \sep !\ [\tau_\text{param}] \to \tau_\text{ret} \\
-  \gamma &\in ADTDecls & &= ADTConst \rightharpoonup ADT \\
-  \delta_\tau &\in FunTypes & &= Const \rightharpoonup [AttrType] \times AttrType
-\end{align*}
+\begin{alignat*}{2}
+  m &\in Modality &\Coloneqq&\ ! \sep * \\
+  a &\in ADT &\Coloneqq&\ \mu\ x^\kappa_\text{adt}.\ [[\tau_\text{field}(x^\kappa_\text{adt}, y^\tau)] \to *x^\kappa_\text{adt}] \\
+  A &\in \mathrlap{ADTConst} \\
+  \tau &\in AttrType &\Coloneqq&\ m\ x^\kappa \sep x^\tau \sep m\ \blacksquare \sep m\ A\ [\tau_\text{arg}] \sep !\ [\tau_\text{param}] \to \tau_\text{ret} \\
+  \gamma &\in ADTDecls &=&\ ADTConst \rightharpoonup ADT \\
+  \delta_\tau &\in FunTypes &=&\ Const \rightharpoonup [AttrType] \times AttrType
+\end{alignat*}
 
-\begin{equation}
-\begin{aligned}
-  propagateWithinShared &: AttrType \to AttrType \\
+\begin{alignat*}{3}
+  propagateWithinShared &: \mathrlap{AttrType \to AttrType} \\
   propagateWithinShared&(m\ x^\kappa) &&=\ !\ x^\kappa \\
   propagateWithinShared&(x^\tau) &&= x^\tau \\
-  propagateWithinShared&(m\ \blacksquare) &&=\ !\ \blacksquare
-\end{aligned}
-\end{equation}
+  propagateWithinShared&(m\ \blacksquare) &&=\ !\ \blacksquare \\
+  propagateWithinShared&(m\ A\ [\tau_\text{arg}]) &&=\ !\ A\ [propagateWithinShared(\tau_\text{arg})] \\
+  propagateWithinShared&\mathrlap{(!\ [\tau_\text{param}] \to \tau_\text{ret})} \\
+  \mathclap{\hspace{12em}= \ !\ [propagateWithinShared(\tau_\text{param})] \to propagateWithinShared(\tau_\text{ret})}
+\end{alignat*}
+
+\begin{alignat*}{3}
+  propagate &: \mathrlap{AttrType \to AttrType} \\
+  propagate&(m\ x^\kappa) &&= m\ x^\kappa \\
+  propagate&(x^\tau) &&= x^\tau \\
+  propagate&(m\ \blacksquare) &&= m\ \blacksquare \\
+  propagate&(*\ A\ [\tau_\text{arg}]) &&= *\ A\ [propagate(\tau_\text{arg})] \\
+  propagate&(!\ A\ [\tau_\text{arg}]) &&= \ !\ A\ [propagateWithinShared(\tau_\text{arg})] \\
+  propagate&\mathrlap{(!\ [\tau_\text{param}] \to \tau_\text{ret})} \\
+  \mathclap{\hspace{25em}= \ !\ [propagateWithinShared(\tau_\text{param})] \to propagateWithinShared(\tau_\text{ret})}
+\end{alignat*}
+
+We use the following notation for substitution:
+\begin{alignat*}{3}
+  a(\kappa, \tau)\ &&\coloneqq&\ \mu\ x^\kappa_\text{adt}.\ [[propagate(\tau_\text{field}[\kappa/x^\kappa_\text{adt}][\tau/y^\tau])] \to *x^\kappa_\text{adt}] \\
+  \text{where } a &&=&\ \mu\ x^\kappa_\text{adt}.\ [[\tau_\text{field}(x^\kappa_\text{adt}, y^\tau)] \to *x^\kappa_\text{adt}].
+\end{alignat*}
+
+\begin{alignat*}{3}
+  weaken &: \mathrlap{AttrType \to AttrType} \\
+  weaken&(\tau) &&= propagateWithinShared(\tau) \\
+  !&(\tau) &&= weaken(\tau)
+\end{alignat*}
+
+\begin{alignat*}{3}
+  strengthen &: \mathrlap{AttrType \to AttrType} \\
+  strengthen&(m\ x^\kappa) &&= *\ x^\kappa \\
+  strengthen&(x^\tau) &&= x^\tau \\
+  strengthen&(m\ \blacksquare) &&= *\ \blacksquare \\
+  strengthen&(m\ A\ [\tau_\text{arg}]) &&= *\ A\ [strengthen(\tau_\text{arg})] \\
+  strengthen&(!\ [\tau_\text{param}] \to \tau_\text{ret}) &&=\ !\ [\tau_\text{param}] \to \tau_\text{ret} \\
+\end{alignat*}
+
+\begin{alignat*}{3}
+  attr &: \mathrlap{AttrType \rightharpoonup Attr} \\
+  attr&(m\ x^\kappa) &&= m \\
+  attr&(m\ \blacksquare) &&= m \\
+  attr&(m\ A\ [\tau_\text{arg}]) &&= m \\
+  attr&(!\ [\tau_\text{param}] \to \tau_\text{ret}) &&=\ ! \\
+\end{alignat*}
 
 \section{Intermediate Representation}
 
-\begin{align*}
+\begin{alignat*}{3}
   x, y, z &\in Var \\
   i &\in Ctor \\
   j &\in Proj \\
   c &\in Const \\
-  e &\in Expr & &::= \textrm{\lstinline|c [y]|}
+  e &\in Expr &\Coloneqq&\ \textrm{\lstinline|c [y]|}
     \sep \textrm{\lstinline|pap c [y]|}
     \sep \textrm{\lstinline|x y|}
     \sep \textrm{\lstinline|(A [τ?]).ctorᵢ [y]|} \\
-    & & &\quad\ \sep \textrm{\lstinline|projᵢⱼ|} \\
-  F &\in FnBody & &::= \textrm{\lstinline|ret x|}
+    &&&\enspace\sep \textrm{\lstinline|projᵢⱼ y|} \\
+  F &\in FnBody &\Coloneqq&\ \textrm{\lstinline|ret x|}
     \sep \textrm{\lstinline|let x := e; F|}
     \sep \textrm{\lstinline|case x of [F]|} \\
-    & & &\quad\ \sep \textrm{\lstinline|case' x of [ctorᵢ [y] ⇒ F]|}\\
-  f &\in Fn & &::= \lambda\ [y].\ F \\
-  \delta &\in Program & &= Const \rightharpoonup Fn
+    &&&\enspace\sep \textrm{\lstinline|case' x of [ctorᵢ [y] ⇒ F]|}\\
+  f &\in Fn &\Coloneqq&\ \lambda\ [y].\ F \\
+  \delta &\in Program &=&\ Const \rightharpoonup Fn
+\end{alignat*}
+
+\section{Escape Analysis}
+\begin{alignat*}{3}
+  n &\in \mathbb{N} \\
+  t &\in Tag &\Coloneqq&\ \#\textrm{const c} \sep \#\textrm{case i} \sep \#\textrm{app} \sep \#\textrm{param n} \\
+  q &\in Escapee\ &\Coloneqq&\ x_{[ij]} @ t? \\
+  \delta_q &\in FunEscapees &=&\ Const \rightharpoonup [Escapee]
+\end{alignat*}
+
+\begin{align*}
+  collapse &: Escapee \times Escapee \rightharpoonup Escapee \\
+  collapse&(x_{[i_1j_1]} @ t?, x_{[i_2j_2]} @ t?) = x_{lcp([i_1j_1], [i_2j_2])} @ t?
 \end{align*}
+
+We use $x_{[i_1j_1]} \leftlsquigarrow y_{[i_2j_2]} @ t? \coloneqq x_{[i_1j_1]} @ t?$ to denote a new escapee that derives its tag from $y_{[i_2j_2]} @ t?$ and write
+$x_{[i_1j_1]} @ t_1? \subset x_{[i_1j_1]++[i_2j_2]} @ t_2?$ to assert that $x_{[i_1j_1]} @ t_1?$ subsumes $x_{[i_1j_1]++[i_2j_2]} @ t_2?$.
+
+Using abstract interpretation, we compute a least fixed point of the following mutually recursive equations:
+
+\newcommand{\ecp}[2]{\llbracket {#1} \rrbracket_q \left( {#2} \right)}
+
+\begin{alignat*}{3}
+  & \ecp{\cdot}{\cdot} : \mathrlap{FnBody \times [Tag] \to 2^{Escapee}} \\
+  &\ecp{\textrm{ret x}}{[t]} &=&
+    \left\{x_{[]}\right\} \\
+  &\ecp{\textrm{case x of [F]}}{[t]}\ &=&\
+    \bigcup_n \ecp{[F]_n}{\#\text{case n} :: [t]} \\
+  &\ecp{\textrm{\lstinline|case' x of [ctorᵢ [y] ⇒ F]|}}{[t]}\ &=&\
+    \bigcup_n \ecp{[F]_n}{\#\text{case n} :: [t]} \\
+    \mathclap{\hspace{34em}\cup \left\{x_{nm :: [kj]} \leftlsquigarrow y_{[kj]} @ t?
+    \ \ |\ \ y_{[kj]} @ t? \in \ecp{[F]_n}{\#\text{case n} :: [t]}\ \land\ x = [y]_m \right\}} \\
+  &\ecp{\textrm{let x = c [y]}}{[t]} &=& ... \\
+  &\ecp{\textrm{let x = pap c [y]}}{[t]} &=& ... \\
+  &\ecp{\textrm{let x = y z}}{[t]} &=& ... \\
+  &\ecp{\textrm{\lstinline|let x = (A [τ?]).ctorᵢ [y]|}}{[t]} &=& ... \\
+  &\ecp{\textrm{\lstinline|let x = projᵢⱼ y|}}{[t]} &=& ...
+\end{alignat*}

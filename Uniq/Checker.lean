@@ -59,36 +59,27 @@ namespace Checker
       | return false
     return typeApplicableTo foundType type
 
-  def Context.canApplyAll (Γ : Context) (vars : Array Var) (types : Array Types.AttrType) : Bool :=
-    vars.zip types |>.all fun ⟨var, type⟩ => Γ.canApply var type
+  def Context.adjoin (Γ : Context) (var : Var) (type : Types.AttrType) : Context :=
+    { Γ with types := Γ.types.insert var type }
 
-  def Context.eraseIfUnique! (Γ : Context) (var : Var) : Context :=
+  def Context.consumeIfUnique! (Γ : Context) (var : Var) : Context :=
     let foundType := Γ.types.find! var
     if foundType.isUnique then
       {Γ with types := Γ.types.erase var}
     else
       Γ
 
-  def Context.eraseAllUnique! (Γ : Context) (vars : Array Var) : Context := Id.run do
+  def Context.applyTo? (Γ : Context) (vars : Array Var) (types : Array Types.AttrType)
+    (isBorrowed : Nat → Bool := fun _ => false) : Option Context := do
     let mut Γ := Γ
-    for var in vars do
-      Γ := Γ.eraseIfUnique! var
+    for i in [:vars.size] do
+      let var := vars[i]!
+      let type := types[i]!
+      guard <| Γ.canApply var type
+      if ! isBorrowed i then
+        Γ := Γ.adjoin var type
+        Γ := Γ.consumeIfUnique! var
     return Γ
-
-  def Context.adjoin (Γ : Context) (var : Var) (type : Types.AttrType) : Context :=
-    { Γ with types := Γ.types.insert var type }
-
-  def Context.adjoinAll (Γ : Context) (vars : Array Var) (types : Array Types.AttrType) : Context := Id.run do
-    let mut Γ := Γ
-    for ⟨var, type⟩ in vars.zip types do
-      Γ := Γ.adjoin var type
-    return Γ
-
-  def Context.consumeWhenAppliedTo (Γ : Context) (var : Var) (type : Types.AttrType) : Context :=
-    Γ.adjoin var type |>.eraseIfUnique! var
-
-  def Context.consumeAllWhenAppliedTo (Γ : Context) (vars : Array Var) (types : Array Types.AttrType) : Context :=
-    Γ.adjoinAll vars types |>.eraseAllUnique! vars
 
   def Context.isZeroed (Γ : Context) (var : Var) (ctor : Ctor) (proj : Proj) : Bool :=
     Γ.zeroedFields.find? var |>.map (·.contains (ctor, proj)) |>.getD false
@@ -114,15 +105,6 @@ namespace Checker
   def Context.isBorrowedIn (Γ : Context) (c : Const) (i : Nat) : Bool :=
     Γ.static.borrowedParams.find? c |>.map (·.contains i) |>.getD false
 
-  def Context.consumeAllNonBorrowedWhenAppliedTo (Γ : Context) (vars : Array Var) (c : Const) (types : Array Types.AttrType) : Context := Id.run do
-    let mut nonBorrowedVars := #[]
-    let mut nonBorrowedTypes := #[]
-    for i in [0:vars.size] do
-      if !Γ.isBorrowedIn c i then
-        nonBorrowedVars := nonBorrowedVars.push vars[i]!
-        nonBorrowedTypes := nonBorrowedTypes.push types[i]!
-    Γ.adjoinAll nonBorrowedVars nonBorrowedTypes |>.eraseAllUnique! nonBorrowedVars
-
   partial def check (Γ : Context) (body : IR.FnBody) (retType : Types.AttrType) : Bool := Id.run do
     dbg_trace Γ.types
     dbg_trace "{body.printHead}"
@@ -132,17 +114,18 @@ namespace Checker
       if !Γ.nonzero var then
         return false
       return Γ.canApply var retType
+
     | IR.FnBody.«let» var expr rest =>
       match expr with
       | IR.Expr.app c args =>
         if !args.all Γ.nonzero then
           return false
         let ⟨paramTypes, funRetType⟩ := Γ.funType! c
-        if !Γ.canApplyAll args paramTypes then
-          return false
-        let Γ' := Γ.consumeAllNonBorrowedWhenAppliedTo args c paramTypes
+        let some Γ' := Γ.applyTo? args paramTypes (isBorrowed := Γ.isBorrowedIn c)
+          | return false
         let Γ' := Γ'.adjoin var funRetType
         return check Γ' rest retType
+
       | IR.Expr.papp c args =>
         if !args.all Γ.nonzero then
           return false
@@ -151,12 +134,12 @@ namespace Checker
         let funRetType := funRetType.makeShared
         let ⟨passedParamTypes, restParamTypes⟩ :=
           (paramTypes.data.take args.size |>.toArray, paramTypes.data.drop args.size |>.toArray)
-        if !Γ.canApplyAll args passedParamTypes then
-          return false
-        let Γ' := Γ.consumeAllWhenAppliedTo args passedParamTypes
+        let some Γ' := Γ.applyTo? args passedParamTypes
+          | return false
         let varType := determinePappReturnType restParamTypes funRetType
         let Γ' := Γ'.adjoin var varType
         return check Γ' rest retType
+
       | IR.Expr.vapp x y =>
         if !Γ.nonzero y then
           return false
@@ -164,12 +147,12 @@ namespace Checker
           | return false
         let paramType := paramTypes[0]!
         let restParamTypes := paramTypes.eraseIdx 0
-        if !Γ.canApply y paramType then
-          return false
-        let Γ' := Γ.consumeWhenAppliedTo y paramType
+        let some Γ' := Γ.applyTo? #[y] #[paramType]
+          | return false
         let varType := determinePappReturnType restParamTypes funRetType
         let Γ' := Γ'.adjoin var varType
         return check Γ' rest retType
+
       | IR.Expr.ctor adtName explicitParamTypes ctorIdx args =>
         if !args.all Γ.nonzero then
           return false
@@ -187,11 +170,11 @@ namespace Checker
         let some argTypes := adtDecl.computeCtorParamTypes explicitParamTypes inferredParamTypes
           | return false -- one param type was neither provided nor could be inferred
         let ctor := adtDecl.subst adtName argTypes |>.ctors.get! ctorIdx
-        if !Γ.canApplyAll args ctor then
-          return false
-        let Γ' := Γ.consumeAllWhenAppliedTo args ctor
+        let some Γ' := Γ.applyTo? args ctor
+          | return false
         let Γ' := Γ'.adjoin var (.adt .unique adtName argTypes)
         return check Γ' rest retType
+
       | IR.Expr.proj i j x =>
         if Γ.isZeroed x i j then
           return false
@@ -203,17 +186,19 @@ namespace Checker
         let Γ' := Γ.zero attr field.attr x i j
         let Γ' := Γ'.adjoin var field
         return check Γ' rest retType
+
     | IR.FnBody.case var cases =>
       if !Γ.nonzero var then
         return false
       return cases.all (check Γ · retType)
+
     | IR.FnBody.case' var cases =>
       if !Γ.nonzero var then
         return false
       let some (Types.AttrType.adt attr name params) := Γ.types.find? var
         | return false
       let ctors := substitutedCtors Γ.static name params
-      let Γ' := Γ.eraseIfUnique! var
+      let Γ' := Γ.consumeIfUnique! var
       return cases.zip ctors |>.all fun ⟨case, ctor⟩ =>
         let ⟨_, vars, F⟩ := case
         let ctor := ctor.map fun field =>
@@ -221,7 +206,7 @@ namespace Checker
             field.makeShared
           else
             field
-        let Γ' := Γ'.adjoinAll vars ctor
+        let Γ' := vars.zip ctor |>.foldr (init := Γ') fun ⟨var, field⟩ Γ' => Γ'.adjoin var field
         check Γ' F retType
 
   instance [ToString α] : ToString (Lean.RBTree α cmp) where
@@ -247,7 +232,7 @@ namespace Checker
     return true
 end Checker
 
-section List_get
+namespace List_get
   set_option trace.Compiler.result true in
   def List_get? (xs : List α) (i : Nat) : Option α :=
     match xs with
@@ -337,3 +322,12 @@ section List_get
 
   #eval Checker.checkProgram program funTypes adtDecls externUniqueFields externEscapees
 end List_get
+
+namespace DupApp
+  def program : IR.Program := Lean.RBMap.ofList [(0, ⟨1, ilet 1 ≔ iapp 1 @@ #[0, 0]; iret 1⟩)]
+  def funTypes : IR.FunTypeMap := Lean.RBMap.ofList [
+    (0, #[.erased .unique], .erased .unique),
+    (1, #[.erased .shared, .erased .shared], .erased .unique)
+  ]
+  #eval Checker.checkProgram program funTypes Lean.RBMap.empty Lean.RBMap.empty Lean.RBMap.empty
+end DupApp
