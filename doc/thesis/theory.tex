@@ -1,6 +1,7 @@
 \chapter{Formal description}\label{sec:theory}
 
 \newcommand{\sep}{\ \ |\ \ }
+\newcommand{\icode}[1]{\textrm{\lstinline[language=ir-if]|#1|}}
 
 \section{Types}
 \begin{alignat*}{2}
@@ -69,15 +70,15 @@ We use the following notation for substitution:
   i &\in Ctor \\
   j &\in Proj \\
   c &\in Const \\
-  e &\in Expr &\Coloneqq&\ \textrm{\lstinline|c [y]|}
-    \sep \textrm{\lstinline|pap c [y]|}
-    \sep \textrm{\lstinline|x y|}
-    \sep \textrm{\lstinline|(A [τ?]).ctorᵢ [y]|} \\
-    &&&\enspace\sep \textrm{\lstinline|projᵢⱼ y|} \\
-  F &\in FnBody &\Coloneqq&\ \textrm{\lstinline|ret x|}
-    \sep \textrm{\lstinline|let x := e; F|}
-    \sep \textrm{\lstinline|case x of [F]|} \\
-    &&&\enspace\sep \textrm{\lstinline|case' x of [ctorᵢ [y] ⇒ F]|}\\
+  e &\in Expr &\Coloneqq&\ \icode{c [y]}
+    \sep \icode{pap c [y]}
+    \sep \icode{x y}
+    \sep \icode{(A [τ?]).ctorᵢ [y]} \\
+    &&&\enspace\sep \icode{projᵢⱼ y} \\
+  F &\in FnBody &\Coloneqq&\ \icode{ret x}
+    \sep \icode{let x := e; F}
+    \sep \icode{case x of [F]} \\
+    &&&\enspace\sep \icode{case' x of [ctorᵢ [y] ⇒ F]}\\
   f &\in Fn &\Coloneqq&\ \lambda\ [y].\ F \\
   \delta &\in Program &=&\ Const \rightharpoonup Fn
 \end{alignat*}
@@ -85,9 +86,9 @@ We use the following notation for substitution:
 \section{Escape Analysis}
 \begin{alignat*}{3}
   n &\in \mathbb{N} \\
-  t &\in Tag &\Coloneqq&\ \#\textrm{const c} \sep \#\textrm{case i} \sep \#\textrm{app} \sep \#\textrm{param n} \\
+  s, t, v &\in Tag &\Coloneqq&\ \#\textrm{const c} \sep \#\textrm{case i} \sep \#\textrm{app} \sep \#\textrm{param n} \\
   q &\in Escapee\ &\Coloneqq&\ x_{[ij]} @ t? \\
-  \delta_q &\in FunEscapees &=&\ Const \rightharpoonup [Escapee]
+  \delta_q, \delta_{q_0} &\in FunEscapees &=&\ Const \rightharpoonup [Escapee]
 \end{alignat*}
 
 \begin{align*}
@@ -95,26 +96,79 @@ We use the following notation for substitution:
   collapse&(x_{[i_1j_1]} @ t?, x_{[i_2j_2]} @ t?) = x_{lcp([i_1j_1], [i_2j_2])} @ t?
 \end{align*}
 
-We use $x_{[i_1j_1]} \leftlsquigarrow y_{[i_2j_2]} @ t? \coloneqq x_{[i_1j_1]} @ t?$ to denote a new escapee that derives its tag from $y_{[i_2j_2]} @ t?$ and write
+We write
 $x_{[i_1j_1]} @ t_1? \subset x_{[i_1j_1]++[i_2j_2]} @ t_2?$ to assert that $x_{[i_1j_1]} @ t_1?$ subsumes $x_{[i_1j_1]++[i_2j_2]} @ t_2?$.
 
 Using abstract interpretation, we compute a least fixed point of the following mutually recursive equations:
 
 \newcommand{\ecp}[2]{\llbracket {#1} \rrbracket_q \left( {#2} \right)}
 
-\begin{alignat*}{3}
-  & \ecp{\cdot}{\cdot} : \mathrlap{FnBody \times [Tag] \to 2^{Escapee}} \\
-  &\ecp{\textrm{ret x}}{[t]} &=&
+\begin{align*}
+  &\ecp{\cdot}{\cdot} : \mathrlap{FnBody \times [Tag] \to 2^{Escapee}} \\
+  &\ecp{\icode{ret x}}{[t]} =
     \left\{x_{[]}\right\} \\
-  &\ecp{\textrm{case x of [F]}}{[t]}\ &=&\
+  &\ecp{\icode{case x of [F]}}{[t]}\ =\
     \bigcup_n \ecp{[F]_n}{\#\text{case n} :: [t]} \\
-  &\ecp{\textrm{\lstinline|case' x of [ctorᵢ [y] ⇒ F]|}}{[t]}\ &=&\
+  &\ecp{\icode{case' x of [ctorᵢ [y] ⇒ F]}}{[t]}\ =\
     \bigcup_n \ecp{[F]_n}{\#\text{case n} :: [t]} \\
-    \mathclap{\hspace{34em}\cup \left\{x_{nm :: [kj]} \leftlsquigarrow y_{[kj]} @ t?
-    \ \ |\ \ y_{[kj]} @ t? \in \ecp{[F]_n}{\#\text{case n} :: [t]}\ \land\ x = [y]_m \right\}} \\
-  &\ecp{\textrm{let x = c [y]}}{[t]} &=& ... \\
-  &\ecp{\textrm{let x = pap c [y]}}{[t]} &=& ... \\
-  &\ecp{\textrm{let x = y z}}{[t]} &=& ... \\
-  &\ecp{\textrm{\lstinline|let x = (A [τ?]).ctorᵢ [y]|}}{[t]} &=& ... \\
-  &\ecp{\textrm{\lstinline|let x = projᵢⱼ y|}}{[t]} &=& ...
+    \mathclap{\hspace{34em}\cup \left\{x_{nm :: [kj]} @ s?
+    \ \ |\ \ y_{[kj]} @ s? \in \ecp{[F]_n}{\#\text{case n} :: [t]}\ \land\ x = [y]_m \right\}} \\
+  &\ecp{\icode{let x = c [y]; F}}{[t]} = Q_F \\
+  \mathclap{\hspace{34.7em}\cup \begin{cases}
+  	Q & \exists [nm].\ x_{[nm]} @ v? \in Q_F \land c \in dom(\delta_q) \\
+    \left\{y \ | \ y \in [y]\right\} & \exists [nm].\ x_{[nm]} @ v? \in Q_F \land c \notin dom(\delta_q) \land c \notin dom(\delta) \\
+  	\emptyset & \exists [nm].\ x_{[nm]} @ v? \in Q_F \land c \notin dom(\delta_q) \land c \in dom(\delta) \\
+  	\emptyset & \lnot \exists [nm].\ x_{[nm]} @ v? \in Q_F
+  \end{cases}} \\
+  \mathclap{\hspace{34em} \text{where } Q := \left\{([y]_z)_{[ij]} @ (\#\text{param z} :: [t]) \ |\ z_{[ij]} @ s? \in \delta_q(c) \right\}}\\
+  \mathclap{\hspace{21.4em}\text{ and } Q_F := \ecp{F}{\#\text{app}::[t]}}\\
+  &\ecp{\icode{let x = pap c [y]; F}}{[t]} = \ecp{F}{[t]} \\
+  \mathclap{\hspace{26.5em}\cup \begin{cases}
+  	\left\{y \ | \ y \in [y]\right\} & \exists [nm].\ x_{[nm]} @ v? \in \ecp{F}{[t]} \\
+  	\emptyset & \lnot \exists [nm].\ x_{[nm]} @ v? \in \ecp{F}{[t]}
+  \end{cases}}\\
+  &\ecp{\icode{let x = y z; F}}{[t]} = \ecp{F}{[t]} \\
+  \mathclap{\hspace{24em}\cup \begin{cases}
+      \left\{y, z\right\} & \exists [nm].\ x_{[nm]} @ v? \in \ecp{F}{[t]} \\
+      \emptyset & \lnot \exists [nm].\ x_{[nm]} @ v? \in \ecp{F}{[t]}
+  	\end{cases}}\\
+  &\ecp{\icode{let x = (A [τ?]).ctorᵢ [y]; F}}{[t]} = \ecp{F}{[t]} \\
+  \mathclap{\hspace{22.6em}\cup \begin{cases}
+     y_{[]} & x_{[]} @ v? \in \ecp{F}{[t]} \\
+     \emptyset & \lnot \exists [nm].\ x_{[nm]} @ v? \in \ecp{F}{[t]}
+  \end{cases}} \\
+  &\ecp{\icode{let x = projᵢⱼ y; F}}{[t]} = \ecp{F}{[t]} \\
+  \mathclap{\hspace{36.5em}\cup \begin{cases}
+    \left\{y_{ij :: [kl]} @ s? \ | \ x_{[kl]} @ s? \in \ecp{F}{[t]} \right\} & \exists [nm].\ x_{[nm]} @ v \in \ecp{F}{[t]} \\
+    \emptyset & \lnot \exists [nm].\ x_{[nm]} @ v? \in \ecp{F}{[t]}
+  \end{cases}}
+\end{align*}
+
+\begin{alignat*}{3}
+	fd &: \mathrlap{\mathbb{N} \times 2^{Escapee} \to 2^{Escapee}} \\
+	fd&(arity, Q) &&= \left\{x_{[ij]}@t? \ |\ x_{[ij]}@t? \in Q \land x \in [0, arity] \right\}
 \end{alignat*}
+\begin{alignat*}{1}
+	&\equiv_t : Escapee \times Escapee \to \mathbb{B} \\
+	&x_{[ij]} @ s? \equiv_t y_{[kl]} @ v? :\Leftrightarrow s? = v?
+\end{alignat*}
+\begin{alignat*}{3}
+	ct &: \mathrlap{2^{Escapee} \rightharpoonup 2^{Escapee}} \\
+	ct&(Q) &&= \left\{fold(collapse, [x_{[ij]} @ s])\ |\ [x_{[ij]} @ s] \in Q/{\equiv_t} \right\}
+\end{alignat*}
+\begin{alignat*}{3}
+	fs &: \mathrlap{2^{Escapee} \to 2^{Escapee}} \\
+	fs&(Q) &&= \left\{q \ |\ q \in Q \land \lnot \exists q' \in Q.\ q \neq q' \land q' \subset q\right\}
+\end{alignat*}
+
+\begin{alignat*}{3}
+	\delta_q(c) = \begin{cases}
+		fs(|[y]|, ct(fd(\ecp{F}{[\#\text{const c}]}))) & c \in dom(\delta) \land \delta(c) = \lambda\ [y].\ F \\
+		\delta_{q_0}(c) & c \notin dom(\delta) \land c \in dom(\delta_{q_0}) \\
+		\emptyset & c \notin dom(\delta) \land c \notin dom(\delta_{q_0})
+	\end{cases}
+\end{alignat*}
+
+These two definitions are mutually recursive and the corresponding lattice over $2^{Escapee}$ does not have finite height: In an escapee $x_{[ij]} @ t?$, we can bound $x$ by all the variables that are possible in the program and $t?$ by every single call site in the program, but the field $[ij]$ may diverge, e.g. when attempting to run the abstract interpretation for the above on a recursive function with a recursive type, in which case we will keep prepending fields to the respective escapee. To alleviate this issue, we implement a form of widening and apply $fd$, $ct$ and $fs$, which filter dead escapees, collapse all escapees with the same tag and then filter all subsumed escapees. Collapsing the escapees with the same tag effectively bounds the lattice: Because there are only finitely many call sites, if the abstract interpretation is executed on a program where it would otherwise diverge, it must necessarily eventually visit the same call site twice and yield an escapee with the same variable but a different field. Collapsing all these escapees from the same call site thus computes a more general escapee that subsumes all the previous escapees from that call site, ensuring that we can iteratively reduce the field in which we were diverging up to a bound of $[]$, where we are guaranteed to terminate.
+
+\section{Borrowing}
