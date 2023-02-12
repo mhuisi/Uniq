@@ -205,41 +205,48 @@ namespace Types
 
   instance : Ord (Ctor × Proj) := lexOrd
 
-  abbrev ExternUniqueFieldsTree := Lean.PrefixTree (Ctor × Proj) Unit compare
+  -- implicit assumptions:
+  -- - the tree is not simply a leaf
+  -- - only leafs contain typeVars
+  abbrev ExternUniqueFieldsTree := Lean.PrefixTree (Ctor × Proj) (Option Var) compare
 
-  def ExternUniqueFieldsTree.isUniqueField (tree : ExternUniqueFieldsTree) (path : List (Ctor × Proj)) : Bool :=
+  inductive ExternUniqueFieldResult
+    | unique
+    | maybeUnique (restPath : List (Ctor × Proj)) (typeVar : Var)
+    | shared
+
+  def ExternUniqueFieldsTree.isUniqueField (tree : ExternUniqueFieldsTree) (path : List (Ctor × Proj)) : ExternUniqueFieldResult  :=
     loop tree.val path
   where
-    loop : Lean.PrefixTreeNode (Ctor × Proj) Unit → List (Ctor × Proj) → Bool
-      | _, [] | .Node _ .leaf, _ => true
+    loop : Lean.PrefixTreeNode (Ctor × Proj) (Option Var) → List (Ctor × Proj) → ExternUniqueFieldResult
+      | .Node (.some (.some var)) .leaf, [] => .maybeUnique [] var
+      | .Node .., [] => .unique
+      | .Node (.some (.some var)) .leaf, rest => .maybeUnique rest var
+      | .Node _ .leaf, _ => .unique
       | .Node _ children, field :: rest =>
-        children.find compare field |>.map (loop · rest) |>.getD false
+        children.find compare field |>.map (loop · rest) |>.getD .shared
 
   abbrev ExternUniqueFieldsMap := Lean.RBMap ADTName ExternUniqueFieldsTree compare
 
-  mutual
-    def isUniqueFieldInADT (adtDecls : ADTDeclMap) (externUniqueFields : ExternUniqueFieldsMap) (adtName : ADTName) : List (Ctor × Proj) → Bool
-      | [] => true
-      | ⟨i, j⟩ :: rest =>
-        match adtDecls.find? adtName with
-        | some (.mk _ _ ctors) =>
-          let i : Nat := i
-          let j : Nat := j
-          isUniqueField adtDecls externUniqueFields (ctors[i]![j]!) rest
-        | none => Id.run do
-          let some externUniqueFields := externUniqueFields.find? adtName
-            | return true
-          externUniqueFields.isUniqueField (⟨i, j⟩ :: rest)
-
-    def isUniqueField (adtDecls : ADTDeclMap) (externUniqueFields : ExternUniqueFieldsMap) : AttrType → List (Ctor × Proj) → Bool
-      | erased .unique, _ | selfVar .unique _, _ => true
-      -- This is not strictly correct, but it is correct in the scope where the function is used.
-      -- `isUniqueField` is only used on ADT parameters that are elligible for borrowing,
-      -- i.e. shared, which makes every type parameter shared, too. Hence, type variables in the
-      -- context of this function can never be unique.
-      | typeVar _, _ => false
-      | adt .unique name _, field =>
-        isUniqueFieldInADT adtDecls externUniqueFields name field
-      | _, _ => false
-  end
+  partial def isUniqueField (adtDecls : ADTDeclMap) (externUniqueFields : ExternUniqueFieldsMap) : AttrType → List (Ctor × Proj) → Bool
+    | erased .unique, _ | selfVar .unique _, _ => true
+    | adt .unique name args, field =>
+      match field, adtDecls.find? name with
+      | [], _ => true
+      | ⟨i, j⟩ :: rest, some adtDecl =>
+        let adtDecl := adtDecl.subst name args 
+        let i : Nat := i
+        let j : Nat := j
+        isUniqueField adtDecls externUniqueFields adtDecl.ctors[i]![j]! rest
+      | ⟨i, j⟩ :: rest, none => Id.run do
+        let some externUniqueFieldsTree := externUniqueFields.find? name
+          | return true
+        match externUniqueFieldsTree.isUniqueField (⟨i, j⟩ :: rest) with
+        | .unique => true
+        | .shared => false
+        | .maybeUnique restPath var =>
+          let arg : Nat := var
+          let argType := args[arg - 1]! -- we assume that the typeVars are numbered by [1, |arity|]
+          isUniqueField adtDecls externUniqueFields argType restPath
+    | _, _ => false
 end Types

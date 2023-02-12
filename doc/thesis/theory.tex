@@ -4,14 +4,18 @@
 \newcommand{\icode}[1]{\textrm{\lstinline[language=ir-if]|#1|}}
 
 \section{Types}
+In all of the following, we use $[x]$ to denote a vector of elements $x$, otherwise commonly written as $\overline{x}$.
+
 \begin{alignat*}{2}
   m &\in Modality &\Coloneqq&\ ! \sep * \\
-  a &\in ADT &\Coloneqq&\ \mu\ x^\kappa_\text{adt}.\ [[\tau_\text{field}(x^\kappa_\text{adt}, y^\tau)] \to *x^\kappa_\text{adt}] \\
+  a &\in ADT &\Coloneqq&\ \mu\ x^\kappa_\text{adt}.\ [[\tau_\text{field}(x^\kappa_\text{adt}, [y^\tau])] \to *x^\kappa_\text{adt}] \\
   A &\in \mathrlap{ADTConst} \\
   \tau &\in AttrType &\Coloneqq&\ m\ x^\kappa \sep x^\tau \sep m\ \blacksquare \sep m\ A\ [\tau_\text{arg}] \sep !\ [\tau_\text{param}] \to \tau_\text{ret} \\
   \gamma &\in ADTDecls &=&\ ADTConst \rightharpoonup ADT \\
   \delta_\tau &\in FunTypes &=&\ Const \rightharpoonup [AttrType] \times AttrType
 \end{alignat*}
+
+We write $(\mu\ x^\kappa_\text{adt}.\ [[\tau_\text{field}(x^\kappa_\text{adt}, [y^\tau])] \to *x^\kappa_\text{adt}])_i := [[\tau_\text{field}(x^\kappa_\text{adt}, [y^\tau])] \to *x^\kappa_\text{adt}]_i$ and $([\tau_\text{field}(x^\kappa_\text{adt}, [y^\tau])] \to *x^\kappa_\text{adt})_j := [\tau_\text{field}(x^\kappa_\text{adt}, [y^\tau])]_j$.
 
 \begin{alignat*}{3}
   propagateWithinShared &: \mathrlap{AttrType \to AttrType} \\
@@ -34,11 +38,13 @@
   \mathclap{\hspace{25em}= \ !\ [propagateWithinShared(\tau_\text{param})] \to propagateWithinShared(\tau_\text{ret})}
 \end{alignat*}
 
-We use the following notation for substitution:
+We use the following notations for substitution:
 \begin{alignat*}{3}
-  a(\kappa, \tau)\ &&\coloneqq&\ \mu\ x^\kappa_\text{adt}.\ [[propagate(\tau_\text{field}[\kappa/x^\kappa_\text{adt}][\tau/y^\tau])] \to *x^\kappa_\text{adt}] \\
-  \text{where } a &&=&\ \mu\ x^\kappa_\text{adt}.\ [[\tau_\text{field}(x^\kappa_\text{adt}, y^\tau)] \to *x^\kappa_\text{adt}].
+  a\{A, [\tau]\}\ &&\coloneqq&\ \mu\ x^\kappa_\text{adt}.\ [[propagate(\tau_\text{field}[A\ [\tau]/x^\kappa_\text{adt}][[\tau]/[y^\tau]])] \to *x^\kappa_\text{adt}] \\
+  a\{[\tau]\}\ &&\coloneqq&\ \mu\ x^\kappa_\text{adt}.\ [[propagate(\tau_\text{field}[[\tau]/[y^\tau]])] \to *x^\kappa_\text{adt}] \\
+  \text{where } a &&=&\ \mu\ x^\kappa_\text{adt}.\ [[\tau_\text{field}(x^\kappa_\text{adt}, [y^\tau])] \to *x^\kappa_\text{adt}].
 \end{alignat*}
+
 
 \begin{alignat*}{3}
   weaken &: \mathrlap{AttrType \to AttrType} \\
@@ -83,12 +89,14 @@ We use the following notation for substitution:
   \delta &\in Program &=&\ Const \rightharpoonup Fn
 \end{alignat*}
 
+In $f = \lambda\ [y].\ F$, we assume that $[y]_z = z$ for $z \in [y]$.
+
 \section{Escape Analysis}
 \begin{alignat*}{3}
-  n &\in \mathbb{N} \\
+  n, m &\in \mathbb{N} \\
   s, t, v &\in Tag &\Coloneqq&\ \#\textrm{const c} \sep \#\textrm{case i} \sep \#\textrm{app} \sep \#\textrm{param n} \\
   q &\in Escapee\ &\Coloneqq&\ x_{[ij]} @ t? \\
-  \delta_q, \delta_{q_0} &\in FunEscapees &=&\ Const \rightharpoonup [Escapee]
+  \delta_{q_e} &\in ExternFunEscapees &=&\ Const \rightharpoonup 2^{Escapee}
 \end{alignat*}
 
 \begin{align*}
@@ -101,7 +109,7 @@ $x_{[i_1j_1]} @ t_1? \subset x_{[i_1j_1]++[i_2j_2]} @ t_2?$ to assert that $x_{[
 
 Using abstract interpretation, we compute a least fixed point of the following mutually recursive equations:
 
-\newcommand{\ecp}[2]{\llbracket {#1} \rrbracket_q \left( {#2} \right)}
+\newcommand{\ecp}[2]{\llbracket {#1} \rrbracket_Q \left( {#2} \right)}
 
 \begin{align*}
   &\ecp{\cdot}{\cdot} : \mathrlap{FnBody \times [Tag] \to 2^{Escapee}} \\
@@ -115,12 +123,12 @@ Using abstract interpretation, we compute a least fixed point of the following m
     \ \ |\ \ y_{[kj]} @ s? \in \ecp{[F]_n}{\#\text{case n} :: [t]}\ \land\ x = [y]_m \right\}} \\
   &\ecp{\icode{let x = c [y]; F}}{[t]} = Q_F \\
   \mathclap{\hspace{34.7em}\cup \begin{cases}
-  	Q & \exists [nm].\ x_{[nm]} @ v? \in Q_F \land c \in dom(\delta_q) \\
-    \left\{y \ | \ y \in [y]\right\} & \exists [nm].\ x_{[nm]} @ v? \in Q_F \land c \notin dom(\delta_q) \land c \notin dom(\delta) \\
-  	\emptyset & \exists [nm].\ x_{[nm]} @ v? \in Q_F \land c \notin dom(\delta_q) \land c \in dom(\delta) \\
+  	Q & \exists [nm].\ x_{[nm]} @ v? \in Q_F \land c \in dom(\delta_Q) \\
+    \left\{y \ | \ y \in [y]\right\} & \exists [nm].\ x_{[nm]} @ v? \in Q_F \land c \notin dom(\delta_Q) \land c \notin dom(\delta) \\
+  	\emptyset & \exists [nm].\ x_{[nm]} @ v? \in Q_F \land c \notin dom(\delta_Q) \land c \in dom(\delta) \\
   	\emptyset & \lnot \exists [nm].\ x_{[nm]} @ v? \in Q_F
   \end{cases}} \\
-  \mathclap{\hspace{34em} \text{where } Q := \left\{([y]_z)_{[ij]} @ (\#\text{param z} :: [t]) \ |\ z_{[ij]} @ s? \in \delta_q(c) \right\}}\\
+  \mathclap{\hspace{34em} \text{where } Q := \left\{([y]_z)_{[ij]} @ (\#\text{param z} :: [t]) \ |\ z_{[ij]} @ s? \in \delta_Q(c) \right\}}\\
   \mathclap{\hspace{21.4em}\text{ and } Q_F := \ecp{F}{\#\text{app}::[t]}}\\
   &\ecp{\icode{let x = pap c [y]; F}}{[t]} = \ecp{F}{[t]} \\
   \mathclap{\hspace{26.5em}\cup \begin{cases}
@@ -161,14 +169,79 @@ Using abstract interpretation, we compute a least fixed point of the following m
 	fs&(Q) &&= \left\{q \ |\ q \in Q \land \lnot \exists q' \in Q.\ q \neq q' \land q' \subset q\right\}
 \end{alignat*}
 
-\begin{alignat*}{3}
-	\delta_q(c) = \begin{cases}
+\begin{align*}
+	\delta_Q &: \mathrlap{Const \rightharpoonup 2^{Escapee}} \\
+	\delta_Q&(c) = \begin{cases}
 		fs(|[y]|, ct(fd(\ecp{F}{[\#\text{const c}]}))) & c \in dom(\delta) \land \delta(c) = \lambda\ [y].\ F \\
-		\delta_{q_0}(c) & c \notin dom(\delta) \land c \in dom(\delta_{q_0}) \\
-		\emptyset & c \notin dom(\delta) \land c \notin dom(\delta_{q_0})
+		\delta_{q_e}(c) & c \notin dom(\delta) \land c \in dom(\delta_{q_e}) \\
+		\emptyset & c \notin dom(\delta) \land c \notin dom(\delta_{q_e})
 	\end{cases}
-\end{alignat*}
+\end{align*}
 
 These two definitions are mutually recursive and the corresponding lattice over $2^{Escapee}$ does not have finite height: In an escapee $x_{[ij]} @ t?$, we can bound $x$ by all the variables that are possible in the program and $t?$ by every single call site in the program, but the field $[ij]$ may diverge, e.g. when attempting to run the abstract interpretation for the above on a recursive function with a recursive type, in which case we will keep prepending fields to the respective escapee. To alleviate this issue, we implement a form of widening and apply $fd$, $ct$ and $fs$, which filter dead escapees, collapse all escapees with the same tag and then filter all subsumed escapees. Collapsing the escapees with the same tag effectively bounds the lattice: Because there are only finitely many call sites, if the abstract interpretation is executed on a program where it would otherwise diverge, it must necessarily eventually visit the same call site twice and yield an escapee with the same variable but a different field. Collapsing all these escapees from the same call site thus computes a more general escapee that subsumes all the previous escapees from that call site, ensuring that we can iteratively reduce the field in which we were diverging up to a bound of $[]$, where we are guaranteed to terminate.
 
+In order to perform the abstract interpretation, we use Kosaraju's algorithm to compute strongly connected components in the call graph of functions $c \in dom(\delta)$, traverse the resulting graph of strongly connected components in reverse topological sort and then iteratively compute $\delta_Q(c)$ within each strongly connected component of mutually recursive functions until we reach a fixed point.
+
 \section{Borrowing}
+In this section, we will use $[x] \leq_+ [y]$ to denote that $[x]$ is a prefix of $[y]$.
+
+\begin{alignat*}{3}
+	r_{*_e} &\in ExternUniqueFieldResult\ &\Coloneqq& *_r \sep !_r \sep ?_r\ x^\tau\ [ij] \\
+	f_{*_e} &\in ExternUniqueField\ &\Coloneqq&\ \cdot_{[ij]@x^\tau?} \\
+	\gamma_{*_e} &\in ExternUniqueFields\ &=&\ ADTConst \rightharpoonup 2^{ExternUniqueField}
+\end{alignat*}
+
+We assume that all $\gamma_{*_e}(A)$ are the leafs of a nonempty tree, i.e. there are no $\cdot_{[ij]}@x^\tau?,\  \cdot_{[kl]}@y^\tau? \in \gamma_{*_e}(A)$ s.t. $[ij] \neq [kl]$ but $[ij] \leq_+ [kl]$ or $[kl] \leq_+ [ij]$.
+
+\begin{alignat*}{3}
+	eu &: \mathrlap{ADTConst \times [Ctor \times Proj] \rightharpoonup ExternUniqueFieldResult} \\
+	eu&(A, path) &&= \\
+	\mathclap{\hspace{34em}\begin{cases}
+		?_r\ x^\tau\ [kl]	& A \in dom(\gamma_{*_e}) \land \exists \cdot_{[ij]@x^\tau} \in \gamma_{*_e}(A).\ \exists [kl].\ [ij] ++ [kl] = path \\
+		*_r	& A \in dom(\gamma_{*_e}) \land \exists \cdot_{[ij]@x^\tau} \in \gamma_{*_e}(A).\ path \leq_+ [ij] \land path \neq [ij] \\
+		*_r	& A \in dom(\gamma_{*_e}) \land \exists \cdot_{[ij]} \in \gamma_{*_e}(A).\ path \leq_+ [ij] \lor [ij] \leq_+ path \\
+		!_r	& A \in dom(\gamma_{*_e}) \land \lnot \exists \cdot_{[ij]@x^\tau?} \in \gamma_{*_e}(A).\ path \leq_+ [ij] \lor [ij] \leq_+ path \\
+		*_r & A \notin dom(\gamma_{*_e})
+	\end{cases}}
+\end{alignat*}
+
+\begin{alignat*}{3}
+	isUnique &: \mathrlap{AttrType \times [Ctor \times Proj] \rightharpoonup \mathbb{B}} \\
+	isUnique&(*\ x^\kappa, path) &&= \top \\
+	isUnique&(*\ \blacksquare, path) &&= \top \\
+	isUnique&(*\ A\ [\tau_\text{arg}], []) &&= \top \\
+	isUnique&(*\ A\ [\tau_\text{arg}], path@((i, j)::rest)) &&= \\
+	\mathclap{\hspace{28em}\begin{cases}
+		isUnique(\gamma(A)\{A, [\tau_\text{arg}]\}_{ij}, rest)& A \in dom(\gamma) \\
+		\top & A \notin dom(\gamma) \land eu(A, path) = *_r \\
+		\bot & A \notin dom(\gamma) \land eu(A, path) =\ !_r \\
+		isUnique([\tau_\text{arg}]_{x^\tau}, [kl]) & A \notin dom(\gamma) \land eu(A, path) =\ ?_r\ x^\tau\ [kl]
+	\end{cases}} \\
+	isUnique&(!\ x^\kappa, path) &&= \bot \\
+	isUnique&(!\ \blacksquare, path) &&= \bot \\
+	isUnique&(!\ A\ [\tau_\text{arg}], path) &&= \bot \\
+	isUnique&(!\ [\tau_\text{param}] \to \tau_\text{ret}, path) &&= \bot
+\end{alignat*}
+
+\begin{alignat*}{3}
+	\gamma_* &: \mathrlap{ADTConst \times [AttrType] \to 2^{[Ctor \times Proj]}} \\
+	\gamma_*&(A, [\tau_\text{arg}]) &&= \left\{ p \ |\ isUnique(*\ A\ [\tau_\text{arg}], p) = \top \land p \neq [] \right\}
+\end{alignat*}
+
+\begin{alignat*}{3}
+	isBorrowed &: \mathrlap{\mathbb{N} \times AttrType \times 2^{Escapee} \to \mathbb{B}} \\
+	isBorrowed&(x, !\ A\ [\tau_\text{arg}], Q) &&= x_{[]}@t? \notin Q \land \forall x_{[ij]}@t? \in Q.\ [ij] \notin \gamma_*(A, \tau_\text{arg}) \\
+	isBorrowed&(x, \tau_\text{param}, Q) &&= x_{[]}@t? \notin Q \land attr(\tau_\text{param}) =\ ! \qquad\text{otherwise}
+\end{alignat*}
+
+\begin{alignat*}{3}
+	\delta_\mathbb{B} &: \mathrlap{Const \to 2^\mathbb{N}} \\
+	\delta_\mathbb{B}&(c) &&= \begin{cases}
+		\left\{x \ |\ isBorrowed(x, [\tau_\text{param}]_x, \delta_Q(c)_x) \right\} & c \in dom(\delta_Q) \\
+		\emptyset & c \notin dom(\delta_Q)
+	\end{cases}\\
+	&\mathrlap{\text{where}\ \delta_\tau(c) = ([\tau_\text{param}], \tau_\text{ret})} \\
+	&\mathrlap{\hspace{0.2em}\text{and}\ \delta_Q(c)_x \coloneqq \left\{y_{[ij]}@t? \ |\ y_{[ij]}@t? \in \delta_Q(c) \land y = x \right\}}
+\end{alignat*}
+
+\section{Type Checking}

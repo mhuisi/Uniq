@@ -28,9 +28,9 @@ namespace Borrowing
         let paramEscapes := funEscapees[i]!.any fun e => e.var == i && e.field == [] -- params are vars [0, |arity|)
         let paramTypeShared := paramTypes[i]!.isShared
         let noFieldsEscape :=
-          if let .adt _ name _ := paramTypes[i]! then
-            funEscapees[i]!.all fun escapee =>
-              !Types.isUniqueFieldInADT adtDecls externUniqueFields name escapee.field
+          if let .adt _ name args := paramTypes[i]! then
+            funEscapees[i]!.filter (·.field != []) |>.all fun escapee =>
+              !Types.isUniqueField adtDecls externUniqueFields (.adt .unique name args) escapee.field
           else
             true
         if !paramEscapes && paramTypeShared && noFieldsEscape then
