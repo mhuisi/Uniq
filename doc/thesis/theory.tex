@@ -51,6 +51,15 @@ We use the following notation for substitution:
 \end{alignat*}
 
 \begin{alignat*}{3}
+	weakenInner &: \mathrlap{AttrType \to AttrType} \\
+	weakenInner&(m\ x^\kappa) &&= m\ x^\kappa \\
+	weakenInner&(x^\tau) &&= x^\tau \\
+	weakenInner&(m\ \blacksquare) &&= m\ \blacksquare \\
+	weakenInner&(m\ A\ [\tau_\text{arg}]) &&= m\ A\ [!(\tau_\text{arg})] \\
+	weakenInner&(!\ [\tau_\text{param}] \to \tau_\text{ret}) &&=\ !\ [\tau_\text{param}] \to \tau_\text{ret} \\
+\end{alignat*}
+
+\begin{alignat*}{3}
   strengthen &: \mathrlap{AttrType \to AttrType} \\
   strengthen&(m\ x^\kappa) &&= *\ x^\kappa \\
   strengthen&(x^\tau) &&= x^\tau \\
@@ -244,14 +253,160 @@ We assume that all $\gamma_{*_e}(A)$ are the leafs of a nonempty tree, i.e. ther
 
 \section{Type Checking}
 \begin{alignat*}{3}
-	Z &\in ZeroedFields\ &=&\ Var \times Ctor \times Proj \rightharpoonup \mathbb{B} \\
+	Z &\in ZeroedFields\ &=&\ Var \times Ctor \times Proj \to \mathbb{B} \\
 	\Gamma &\in Context  &\Coloneqq&\ [] \sep \Gamma, x : \tau
 \end{alignat*}
 
 We assume $\Gamma$ to be a multiset, i.e. we track duplicate judgements, but not the order of the context. Note that the latter would be required in dependent type theory, as the order of type dependencies must be retained.
 
 \begin{mathpar}
+	\boxed{\vdash \delta_\tau} \hspace{1.5em}
 	$\inferrule[Program]{\forall c \in dom(\delta_\tau) \cap dom(\delta) \text{ s.t. } \delta(c) = \lambda [y] \ F \land \delta_\tau(\tau) = ([\tau_\text{param}], \tau_\text{ret}).\\ 
-		\emptyset, [y : \tau_\text{param}] \vdash F : \tau_\text{ret}}
+		\emptyset; [y : \tau_\text{param}] \vdash F : \tau_\text{ret}}
 	{\vdash \delta_\tau}$
+\end{mathpar}
+
+\newcommand{\ret}{\tau_\text{ret'}}
+
+\begin{alignat*}{3}
+	nz &: \mathrlap{ZeroedFields \times Var \to \mathbb{B}} \\
+	nz&(Z, x) &&= \lnot \exists i\ j.\ Z(x, i, j) = \top
+\end{alignat*}
+
+\begin{alignat*}{3}
+	inferVars' &: \mathrlap{AttrType \times AttrType \rightharpoonup (Var \rightharpoonup AttrType)} \\
+	inferVars'&(m\ x^\kappa, \tau) &&= \emptyset \\
+	inferVars'&(x^\tau, \tau) &&= \{ x^\tau \mapsto \tau \} \\
+	inferVars'&(m\ \blacksquare, \tau) &&= \emptyset \\
+	inferVars'&(m_1\ A\ [\tau_{\text{arg}_1}], m_2\ A\ [\tau_{\text{arg}_2}]) &&=\\
+	&\mathrlap{\bigcupdot_i inferVars'([\tau_{\text{arg}_1}]_i, [\tau_{\text{arg}_2}]_i)} \\
+	inferVars'&(!\ [\tau_{\text{param}_1}] \to \tau_{\text{ret}_1}, !\ [\tau_{\text{param}_2}] \to \tau_{\text{ret}_2}) &&= \\
+	&\mathrlap{\bigcupdot_i inferVars'([\tau_{\text{param}_1}]_i, [\tau_{\text{param}_2}]_i) \cupdot inferVars'(\tau_{\text{ret}_1}, \tau_{\text{ret}_2})}
+\end{alignat*}
+
+\begin{alignat*}{3}
+	inferVars &: \mathrlap{[AttrType] \times [AttrType] \rightharpoonup (Var \rightharpoonup AttrType)} \\
+	inferVars&([], []) &&= \emptyset \\
+	inferVars&(\tau_1 :: rest_1, \tau_2 :: rest_2) &&= inferVars'(\tau_1, \tau_2) \cupdot inferVars(rest_1, rest_2) \\
+\end{alignat*}
+
+\begin{alignat*}{3}
+	pickTypes &: \mathrlap{[AttrType?] \times [AttrType?] \rightharpoonup [AttrType]} \\
+	pickTypes&([]) &&= [] \\
+	pickTypes&(\tau_e? :: rest_e, \tau_i :: rest_i) &&= \tau_i :: pickTypes(rest_e, rest_i) \\
+	pickTypes&(\tau_e :: rest_e, - :: rest_i) &&= strengthen(\tau_e) :: pickTypes(rest_e, rest_i) \\
+\end{alignat*}
+
+\begin{alignat*}{3}
+	inferTypeArgs &: \mathrlap{ADTDecl \times \mathbb{N} \times [AttrType] \times [AttrType?] \rightharpoonup [AttrType]} \\
+	inferTypeArgs&(a, i, [\tau_\text{arg}], [\tau_e?]) &&= pickTypes([\tau_e?], [inferred(y^\tau)])\\
+		& \mathrlap{\text{where } a_i = [\tau_\text{field}(x^\kappa_\text{adt}, [y^\tau])] \to *x^\kappa_\text{adt}} \\
+		& \mathrlap{\text{and } inferred = inferVars([\tau_\text{field}(x^\kappa_\text{adt}, [y^\tau])], [\tau_\text{arg}]])}
+\end{alignat*}
+
+We use $m_1 \succcurlyeq_m m_2 :\Leftrightarrow m_1 = * \lor m_1 =\ ! \land m_2 =\ !$ to denote attribute subtyping and define a subtyping relation $\succcurlyeq$ as follows:
+\begin{mathpar}
+	\boxed{\tau_1 \succcurlyeq \tau_2} \hspace{1.5em}
+	$\inferrule{m_1 \succcurlyeq_m m_2}{m_1\ \blacksquare \succcurlyeq m_2\ \blacksquare}$ \hspace{1.5em}
+	$\inferrule{m_1 \succcurlyeq_m m_2}{m_1\ x^\kappa \succcurlyeq m_2\ x^\kappa}$ \hspace{1.5em}
+	$\inferrule{ }{x^\tau \succcurlyeq x^\tau}$
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule{ }{!\ [\tau_\text{param}] \to \tau_\text{ret} \succcurlyeq\ !\ [\tau_\text{param}] \to \tau_\text{ret}}$ \hspace{1.5em}
+	$\inferrule{m_1 \succcurlyeq_m m_2 \\ [\tau_{\text{arg}_1} \succcurlyeq \tau_{\text{arg}_2}]}{m_1\ A\ [\tau_{\text{arg}_1}] \succcurlyeq m_2\ A\ [\tau_{\text{arg}_2}]}$
+\end{mathpar}
+
+\begin{mathpar}
+	\boxed{Z; \Gamma \vdash F : \tau}
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule[Duplicate]{Z; \Gamma, x :\ !\tau, x :\ !\tau \vdash F : \ret}{Z; \Gamma, x :\ !\tau \vdash F : \ret}$ \hspace{1.5em}
+	$\inferrule[Forget]{Z; \Gamma \vdash F : \ret}{Z; \Gamma, x :\ !\tau \vdash F : \ret}$
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule[Downcast]{\tau \succcurlyeq \tau' \\ nz(Z, x) \\ Z; \Gamma, x : \tau' \vdash F : \ret}{Z; \Gamma, x : \tau \vdash F : \ret}$
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule[$\blacksquare$-Cast]{Z; \Gamma, x : weakenInner(\tau) \vdash F : \ret}{Z; \Gamma, x : attr(\tau)\ \blacksquare \vdash F : \ret}$ \hspace{1.5em}
+	$\inferrule[$\blacksquare$-Erase]{Z; \Gamma, x : attr(\tau)\ \blacksquare \vdash F : \ret}{Z; \Gamma, x : \tau \vdash F : \ret}$
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule[Ret]{nz(Z, x)}{Z; \Gamma, x : \ret \vdash \icode{ret x} : \ret}$ \hspace{1.5em}
+	$\inferrule[Case]{nz(Z, x) \\ [Z; \Gamma, x : m\ A\ [\tau_\text{arg}] \vdash F : \ret]}{Z; \Gamma, x : m\ A\ [\tau_\text{arg}] \vdash \icode{case x of [F]} : \ret}$
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule[Case'-!]
+		{nz(Z, x) 
+				\\ A \in dom(\gamma)
+				\\ \gamma(A)\{A, [\tau_\text{arg}]\} = \mu\ x^\kappa_\text{adt}.\ [[\tau_\text{field}] \to *x^\kappa_\text{adt}]
+				\\ [Z; \Gamma, [y :\ !\tau_\text{field}] \vdash F : \ret]}
+		{Z; \Gamma, x : \ !\ A\ [\tau_\text{arg}] \vdash \icode{case' x of [ctorᵢ [y] ⇒ F]} : \ret}$
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule[Case'-*]
+	{nz(Z, x) 
+		\\ A \in dom(\gamma)
+		\\ \gamma(A)\{A, [\tau_\text{arg}]\} = \mu\ x^\kappa_\text{adt}.\ [[\tau_\text{field}] \to *x^\kappa_\text{adt}]
+		\\ [Z; \Gamma, [y : \tau_\text{field}] \vdash F : \ret]}
+	{Z; \Gamma, x : *\ A\ [\tau_\text{arg}] \vdash \icode{case' x of [ctorᵢ [y] ⇒ F]} : \ret}$
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule[Let-App]{[nz(Z, y)] 
+		\\ \delta_\tau(c) = ([\tau_\text{param}], \tau_{\text{ret}})
+		\\ Z; \Gamma, \{ [y]_x : [\tau_\text{param}]_x \ |\ x \in \delta_\mathbb{B}(c) \}, z : \tau_{\text{ret}} \vdash F : \ret
+	}
+	{Z; \Gamma, [y : \tau_\text{param}] \vdash \icode{let z := c [y]; F} : \ret}$
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule[Let-Pap-Full]{[nz(Z, y)] 
+		\\ \delta_\tau(c) = ([\tau_\text{param}], \tau_{\text{ret}})
+		\\ |[y]| = |[\tau_\text{param}]|
+		\\ Z; \Gamma, z :\ !\tau_{\text{ret}} \vdash F : \ret
+	}
+	{Z; \Gamma, [y :\ !\tau_\text{param}] \vdash \icode{let z := pap c [y]; F} : \ret}$
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule[Let-Pap-Part]{[nz(Z, y)] 
+		\\ \delta_\tau(c) = ([\tau_\text{param}], \tau_{\text{ret}})
+		\\ |[y]| = |[\tau_{\text{param}_1}]| < |[\tau_\text{param}]|
+		\\ [\tau_{\text{param}_1}] ++ [\tau_{\text{param}_2}] = [\tau_\text{param}]
+		\\ Z; \Gamma, z :\ !\ [\tau_{\text{param}_2}] \to \tau_{\text{ret}} \vdash F : \ret
+	}
+	{Z; \Gamma, [y :\ !\tau_{\text{param}_1}] \vdash \icode{let z := pap c [y]; F} : \ret}$
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule[Let-VarApp-Full]{nz(Z, y) 
+		\\ Z; \Gamma, z :\ !\tau_{\text{ret}} \vdash F : \ret
+	}
+	{Z; \Gamma, x :\ !\ \tau_{\text{param}} \to \tau_{\text{ret}}, y :\ ! \tau_{\text{param}}  \vdash \icode{let z := x y; F} : \ret}$
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule[Let-VarApp-Part]{nz(Z, y) 
+		\\ |[\tau_{\text{param'}}]| \geq 1
+		\\ Z; \Gamma, z :\ !\ [\tau_{\text{param'}}] \to \tau_{\text{ret}} \vdash F : \ret
+	}
+	{Z; \Gamma, x :\ !\ (\tau_{\text{param}} :: [\tau_{\text{param'}}]) \to \tau_{\text{ret}}, y :\ ! \tau_{\text{param}} \vdash \icode{let z := x y; F} : \ret}$
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule[Let-Ctor]{[nz(Z, y)]
+		\\ A \in dom(\gamma)
+		\\ (\gamma(A), i, [\tau'], [\tau?]) \in dom(inferTypeArgs)
+		\\ \gamma(A)\{A, inferTypeArgs(\gamma(A), i, [\tau'], [\tau?])\}_i = [\tau_\text{field}] \to *x^\kappa_\text{adt}
+		\\ [\tau_\text{field}] = [\tau']
+	}
+	{Z; \Gamma, [y : \tau'] \vdash \icode{let x = (A [τ?]).ctorᵢ [y]; F} : \ret}$
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule[Let-Proj-*]{Z(y, i, j) = \bot
+		\\ A \in dom(\gamma)
+		\\ Z[(y, i, j) \mapsto \top]; \Gamma, z : \gamma(A)\{A, [\tau_{\text{arg}}]\}_{ij} \vdash F : \ret
+	}
+	{Z; \Gamma, y : *\ A\ [\tau_{\text{arg}}] \vdash \icode{let z = projᵢⱼ y; F} : \ret}$
+\end{mathpar}
+\begin{mathpar}
+	$\inferrule[Let-Proj-!]{Z(y, i, j) = \bot
+		\\ A \in dom(\gamma)
+		\\ Z; \Gamma, z :\ !\gamma(A)\{A, [\tau_{\text{arg}}]\}_{ij} \vdash F : \ret
+	}
+	{Z; \Gamma, y :\ !\ A\ [\tau_{\text{arg}}] \vdash \icode{let z = projᵢⱼ y; F} : \ret}$
 \end{mathpar}

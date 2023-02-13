@@ -181,10 +181,11 @@ namespace Checker
         let .adt attr adtName typeArgs := Γ.types.find! x
           | return false
         let mut field := substitutedCtors Γ.static adtName typeArgs |>.get! i |>.get! j
+        let mut Γ' := Γ
         if attr matches .shared then
           field := field.makeShared
-        let Γ' := Γ.zero attr field.attr x i j
-        let Γ' := Γ'.adjoin var field
+          Γ' := Γ'.zero attr field.attr x i j
+        Γ' := Γ'.adjoin var field
         return check Γ' rest retType
 
     | IR.FnBody.case var cases =>
