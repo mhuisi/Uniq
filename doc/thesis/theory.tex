@@ -38,11 +38,9 @@ We write $(\mu\ x^\kappa_\text{adt}.\ [[\tau_\text{field}(x^\kappa_\text{adt}, [
   \mathclap{\hspace{25em}= \ !\ [propagateWithinShared(\tau_\text{param})] \to propagateWithinShared(\tau_\text{ret})}
 \end{alignat*}
 
-We use the following notations for substitution:
+We use the following notation for substitution:
 \begin{alignat*}{3}
-  a\{A, [\tau]\}\ &&\coloneqq&\ \mu\ x^\kappa_\text{adt}.\ [[propagate(\tau_\text{field}[A\ [\tau]/x^\kappa_\text{adt}][[\tau]/[y^\tau]])] \to *x^\kappa_\text{adt}] \\
-  a\{[\tau]\}\ &&\coloneqq&\ \mu\ x^\kappa_\text{adt}.\ [[propagate(\tau_\text{field}[[\tau]/[y^\tau]])] \to *x^\kappa_\text{adt}] \\
-  \text{where } a &&=&\ \mu\ x^\kappa_\text{adt}.\ [[\tau_\text{field}(x^\kappa_\text{adt}, [y^\tau])] \to *x^\kappa_\text{adt}].
+  a\{A, [\tau]\}\ &&\coloneqq&\ \mu\ x^\kappa_\text{adt}.\ [[propagate(\tau_\text{field}[A\ [\tau]/x^\kappa_\text{adt}][[\tau]/[y^\tau]])] \to *x^\kappa_\text{adt}]
 \end{alignat*}
 
 
@@ -245,3 +243,15 @@ We assume that all $\gamma_{*_e}(A)$ are the leafs of a nonempty tree, i.e. ther
 \end{alignat*}
 
 \section{Type Checking}
+\begin{alignat*}{3}
+	Z &\in ZeroedFields\ &=&\ Var \times Ctor \times Proj \rightharpoonup \mathbb{B} \\
+	\Gamma &\in Context  &\Coloneqq&\ [] \sep \Gamma, x : \tau
+\end{alignat*}
+
+We assume $\Gamma$ to be a multiset, i.e. we track duplicate judgements, but not the order of the context. Note that the latter would be required in dependent type theory, as the order of type dependencies must be retained.
+
+\begin{mathpar}
+	$\inferrule[Program]{\forall c \in dom(\delta_\tau) \cap dom(\delta) \text{ s.t. } \delta(c) = \lambda [y] \ F \land \delta_\tau(\tau) = ([\tau_\text{param}], \tau_\text{ret}).\\ 
+		\emptyset, [y : \tau_\text{param}] \vdash F : \tau_\text{ret}}
+	{\vdash \delta_\tau}$
+\end{mathpar}
