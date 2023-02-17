@@ -168,7 +168,7 @@ namespace Types
       r := r.insert var type
     return r
 
-  partial def AttrType.unifyWith (a b : Types.AttrType) : Option (Lean.RBMap Var (AttrType) compare) :=  do
+  partial def AttrType.unifyWith (a b : Types.AttrType) : Option (Lean.RBMap Var AttrType compare) :=  do
     if !attrApplicableTo a b then
       .none
     match a, b with
@@ -234,7 +234,7 @@ namespace Types
       match field, adtDecls.find? name with
       | [], _ => true
       | ⟨i, j⟩ :: rest, some adtDecl =>
-        let adtDecl := adtDecl.subst name args 
+        let adtDecl := adtDecl.subst name args
         let i : Nat := i
         let j : Nat := j
         isUniqueField adtDecls externUniqueFields adtDecl.ctors[i]![j]! rest

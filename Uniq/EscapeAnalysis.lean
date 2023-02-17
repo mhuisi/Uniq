@@ -135,15 +135,16 @@ namespace IR.EscapeAnalysis
             args.map fun arg => mkNonDerivedEscapee arg []
           | Expr.vapp y z =>
             #[mkNonDerivedEscapee y [], mkNonDerivedEscapee z []]
-          | Expr.ctor _ _ _ args =>
+          | Expr.ctor _ _ ctor args =>
             if FEscapees.any fun e => e.var == x && e.field == [] then
               args.map fun arg => mkNonDerivedEscapee arg []
             else
-              FEscapees.filter (·.var == x) |>.map fun y =>
+              FEscapees.filter (·.var == x) |>.filterMap fun y => do
                 let field := y.field.head!
                 let rest := y.field.drop 1
+                guard <| field.1 == ctor -- an escapee for a constructor ≠ i is not relevant for y
                 let argIdxCorrespondingToField : Nat := field.2
-                mkDerivedEscapee y args[argIdxCorrespondingToField]! rest
+                return mkDerivedEscapee y args[argIdxCorrespondingToField]! rest
           | Expr.proj ctor proj y =>
             FEscapees.filter (·.var == x) |>.map fun escapee =>
               mkDerivedEscapee escapee y ((ctor, proj) :: escapee.field)
