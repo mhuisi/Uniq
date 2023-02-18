@@ -40,37 +40,38 @@ In all of the following sections, we use $[x]$ to denote a vector of elements $x
   \delta_\tau &\in \FunTypes &=&\ \Const \rightharpoonup [\AttrType] \times \AttrType
 \end{alignat*}
 
-Ctor and Proj denote the constructors and fields within a constructor, respectively. Const designates function names. Attr contains the attributes that are the main subject of our type theory; shared (!) and unique ($*$). Since the Lean 4 compiler erases type dependencies, we will limit ourselves to types that look like potentially recursive abstract data types.
+Ctor and Proj denote the constructors and fields within a constructor, respectively. Const designates function names. Attr contains the attributes that are the main subject of our type theory; shared (!) and unique ($*$). 
 
-\sloppy In $\mu\ x^\kappa_\adt.\ [[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt]$, $x^\kappa_\adt$ is the variable we use to refer back to the ADT itself, $[[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt]$ is a vector of constructors and $[\tau_\field(x^\kappa_\adt, [y^\tau])]$ denotes the types of the fields of the constructor, where $\tau_\field$ is parametrized by the variable $x^\kappa_\adt$ representing the ADT itself, as well as a vector $[y^\tau]$ of type parameters to the ADT. Constructors, projections and type parameters are assumed to be enumerated by intervals $[0, n)$, and so we write $(\mu\ x^\kappa_\adt.\ [[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt])_i \coloneqq [[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt]_i$ and $([\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt)_j \coloneqq [\tau_\field(x^\kappa_\adt, [y^\tau])]_j$, as well as $[y^\tau]_x \coloneqq x$. As Lean 4 code commonly interacts with external types and external code via its foreign function interface (FFI), we cannot assume that we can access an ADT declaration for every type. To deal with this, ADTs are instead identified by an ADTConst, the mapping of which is maintained in a global and partial function $\gamma \in \ADTDecls$. ADTConsts $A \notin \dom(\gamma)$ that appear in the program are regarded as external. Lastly, we demand that all $A \in \dom(\gamma)$ are fully propagated, i.e. that $\forall i\ j.\ \mathrm{propagate}(\gamma(A)_{ij}) = \gamma(A)_{ij}$ for the definition of propagate below.
+\sloppy Since the Lean 4 compiler erases type dependencies, we will limit ourselves to types that look like potentially recursive abstract data types. In $\mu\ x^\kappa_\adt.\ [[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt]$, $x^\kappa_\adt$ is the variable we use to refer back to the ADT itself, $[[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt]$ is a vector of constructors and $[\tau_\field(x^\kappa_\adt, [y^\tau])]$ denotes the types of the fields of the constructor, where $\tau_\field$ is parametrized by the variable $x^\kappa_\adt$ representing the ADT itself, as well as a vector $[y^\tau]$ of type parameters to the ADT. Constructors, projections and type parameters are assumed to be enumerated by intervals $[0, n)$, and so we write $(\mu\ x^\kappa_\adt.\ [[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt])_i \coloneqq [[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt]_i$ and $([\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt)_j \coloneqq [\tau_\field(x^\kappa_\adt, [y^\tau])]_j$, as well as $[y^\tau]_x \coloneqq x$. As Lean 4 code commonly interacts with external types and external code via its foreign function interface (FFI), we cannot assume that we can access an ADT declaration for every type. To deal with this, ADTs are instead identified by an ADTConst, the mapping of which is maintained in a global and partial function $\gamma \in \ADTDecls$. ADTConsts $A \notin \dom(\gamma)$ that appear in the program are regarded as external. Lastly, we demand that all $A \in \dom(\gamma)$ are fully propagated, i.e. that $\forall i\ j.\ \mathrm{propagate}(\gamma(A)_{ij}) = \gamma(A)_{ij}$ for the definition of propagate below.
 
-AttrType contains our types. $m\ x^\kappa$ and $x^\tau$ are the two kinds of variables that can occur only within an ADT; self-referring variables $x^\kappa$ have an associated (fixed) attribute and the variable only represents a parameterless type suffix, while variables $x^\tau$ can denote any type parameter $\tau \in \AttrType$. $m\ \blacksquare$ is an erased type, $m\ A\ [\tau_\arrg]$ is an ADT (or external type) $A$ parametrized by type parameters $[\tau_\arrg]$, and $!\ [\tau_\param \to \tau_\ret]$ is the type of a higher-order function. Finally, $\delta_\tau$ provides the parameter- and return types for all functions in the program, including external ones. This is a reasonable assumption because we can simply assign a type $[!\ \kappa_\param] \to \ !\ \kappa_\ret$ for Lean 4 functions with an unattributed function type $[\kappa_\param] \to \ \kappa_\ret$, or the most general and useless type $[!\ \blacksquare] \to \ !\ \blacksquare$ to all external functions for which we have no type information at all. For $\delta_\tau(c) = ([\tau_\param], \tau_\ret)$, we also demand that all the types are fully propagated, i.e. that $\forall \tau_\param \in [\tau_\param].\ \mathrm{propagate}(\tau_\param) = \tau_\param \land \mathrm{propagate}(\tau_\ret) = \tau_\ret$ for the definition of propagate below.
+AttrType contains our types. $m\ x^\kappa$ and $x^\tau$ are the two kinds of variables that can occur only within an ADT; self-referring variables $x^\kappa$ have an associated (fixed) attribute and the variable only represents a parameterless type suffix, while variables $x^\tau$ can denote any type parameter $\tau \in \AttrType$. $m\ \blacksquare$ is an erased type, $m\ A\ [\tau_\arrg]$ is an ADT (or external type) $A$ parametrized by type arguments $[\tau_\arrg]$, and $!\ [\tau_\param \to \tau_\ret]$ is the type of a higher-order function. Finally, $\delta_\tau$ provides the parameter- and return types for all functions in the program, including external ones. This is a reasonable assumption because we can simply assign a type $[!\ \kappa_\param] \to \ !\ \kappa_\ret$ for Lean 4 functions with an unattributed function type $[\kappa_\param] \to \ \kappa_\ret$, or the most general and useless type $[!\ \blacksquare] \to \ !\ \blacksquare$ to all external functions for which we have no type information at all. For $\delta_\tau(c) = ([\tau_\param], \tau_\ret)$, we also demand that all the types are fully propagated, i.e. that $\forall \tau_\param \in [\tau_\param].\ \mathrm{propagate}(\tau_\param) = \tau_\param \land \mathrm{propagate}(\tau_\ret) = \tau_\ret$ for the definition of propagate below.
 
 \subsection{Propagation}
 
 \newcommand{\propagateWithinShared}{\mathrm{propagateWithinShared}}
+\newcommand{\rebreak}[1]{\mathrlap{\qquad#1}}
 
 \begin{alignat*}{3}
-  \propagateWithinShared &: \mathrlap{\AttrType \to \AttrType} \\
-  \propagateWithinShared&(m\ x^\kappa) &&=\ !\ x^\kappa \\
-  \propagateWithinShared&(x^\tau) &&= x^\tau \\
-  \propagateWithinShared&(m\ \blacksquare) &&=\ !\ \blacksquare \\
-  \propagateWithinShared&(m\ A\ [\tau_\arrg]) &&=\ !\ A\ [\propagateWithinShared(\tau_\arrg)] \\
-  \propagateWithinShared&\mathrlap{(!\ [\tau_\param] \to \tau_\ret)} \\
-  \mathclap{\hspace{12em}= \ !\ [\propagateWithinShared(\tau_\param)] \to \propagateWithinShared(\tau_\ret)}
+  &\propagateWithinShared &&: \mathrlap{\AttrType \to \AttrType} \\
+  &\propagateWithinShared&&(m\ x^\kappa) &&=\ !\ x^\kappa \\
+  &\propagateWithinShared&&(x^\tau) &&= x^\tau \\
+  &\propagateWithinShared&&(m\ \blacksquare) &&=\ !\ \blacksquare \\
+  &\propagateWithinShared&&(m\ A\ [\tau_\arrg]) &&=\ !\ A\ [\propagateWithinShared(\tau_\arrg)] \\
+  &\propagateWithinShared&&\mathrlap{(!\ [\tau_\param] \to \tau_\ret)} \\
+  &\rebreak{= \ !\ [\propagateWithinShared(\tau_\param)] \to \propagateWithinShared(\tau_\ret)}
 \end{alignat*}
 
 \newcommand{\propagate}{\mathrm{propagate}}
 
 \begin{alignat*}{3}
-  \propagate &: \mathrlap{\AttrType \to \AttrType} \\
-  \propagate&(m\ x^\kappa) &&= m\ x^\kappa \\
-  \propagate&(x^\tau) &&= x^\tau \\
-  \propagate&(m\ \blacksquare) &&= m\ \blacksquare \\
-  \propagate&(*\ A\ [\tau_\arrg]) &&= *\ A\ [\propagate(\tau_\arrg)] \\
-  \propagate&(!\ A\ [\tau_\arrg]) &&= \ !\ A\ [\propagateWithinShared(\tau_\arrg)] \\
-  \propagate&\mathrlap{(!\ [\tau_\param] \to \tau_\ret)} \\
-  \mathclap{\hspace{25em}= \ !\ [\propagateWithinShared(\tau_\param)] \to \propagateWithinShared(\tau_\ret)}
+  &\propagate &&: \mathrlap{\AttrType \to \AttrType} \\
+  &\propagate&&(m\ x^\kappa) &&= m\ x^\kappa \\
+  &\propagate&&(x^\tau) &&= x^\tau \\
+  &\propagate&&(m\ \blacksquare) &&= m\ \blacksquare \\
+  &\propagate&&(*\ A\ [\tau_\arrg]) &&= *\ A\ [\propagate(\tau_\arrg)] \\
+  &\propagate&&(!\ A\ [\tau_\arrg]) &&= \ !\ A\ [\propagateWithinShared(\tau_\arrg)] \\
+  &\propagate&&\mathrlap{(!\ [\tau_\param] \to \tau_\ret)} \\
+  &\rebreak{= \ !\ [\propagateWithinShared(\tau_\param)] \to \propagateWithinShared(\tau_\ret)}
 \end{alignat*}
 
 propagate ensures that unique types are made shared if they are contained within a shared type, since a value within another value cannot be guaranteed to be unique if the outer value is already shared. 
@@ -230,40 +231,40 @@ Using abstract interpretation, we compute a least fixed point of the following m
     \bigcup_n \ecp{[F]_n}{\#\text{case n} :: [t]} \\
   &\ecp{\icode{case' x of [ctorᵢ [y] ⇒ F]}}{[t]}\ =\
     \bigcup_n \ecp{[F]_n}{\#\text{case n} :: [t]} \\
-    \mathclap{\hspace{39em}\cup \left\{x_{nm :: [kj]} @ [s]?
+    &\rebreak{\cup \left\{x_{nm :: [kj]} @ [s]?
     \ \ |\ \ ([y]_m)_{[kj]} @ [s]? \in \ecp{[F]_n}{\#\text{case n} :: [t]}\ \land\ m \in [0, |[y]|) \right\}} \\
   &\ecp{\icode{let x = c [y]; F}}{[t]} = Q_F \\
-  \mathclap{\hspace{34.7em}\cup \begin{cases}
+  &\rebreak{\cup \begin{cases}
   	Q & \exists [nm].\ x_{[nm]} @ [v]? \in Q_F \land c \in \dom(\delta_Q) \\
     \left\{y_{[]} \ | \ y \in [y]\right\} & \exists [nm].\ x_{[nm]} @ [v]? \in Q_F \land c \notin \dom(\delta_Q) \land c \notin \dom(\delta) \\
   	\emptyset & \exists [nm].\ x_{[nm]} @ [v]? \in Q_F \land c \notin \dom(\delta_Q) \land c \in \dom(\delta) \\
   	\emptyset & \lnot \exists [nm].\ x_{[nm]} @ [v]? \in Q_F
   \end{cases}} \\
-  \mathclap{\hspace{34em} \text{where } Q := \left\{([y]_z)_{[ij]} @ (\#\text{param z} :: [t]) \ |\ z_{[ij]} @ [s]? \in \delta_Q(c) \right\}}\\
-  \mathclap{\hspace{21.4em}\text{ and } Q_F := \ecp{F}{\#\text{app}::[t]}}\\
+  &\rebreak{\qquad\text{where } Q := \left\{([y]_z)_{[ij]} @ (\#\text{param z} :: [t]) \ |\ z_{[ij]} @ [s]? \in \delta_Q(c) \right\}}\\
+  &\rebreak{\qquad\text{ and } Q_F := \ecp{F}{\#\text{app}::[t]}}\\
   &\ecp{\icode{let x = pap c [y]; F}}{[t]} = \ecp{F}{[t]} \\
-  \mathclap{\hspace{26.5em}\cup \begin{cases}
+  &\rebreak{\cup \begin{cases}
   	\left\{y_{[]} \ | \ y \in [y]\right\} & \exists [nm].\ x_{[nm]} @ [v]? \in \ecp{F}{[t]} \\
   	\emptyset & \lnot \exists [nm].\ x_{[nm]} @ [v]? \in \ecp{F}{[t]}
   \end{cases}}\\
   &\ecp{\icode{let x = y z; F}}{[t]} = \ecp{F}{[t]} \\
-  \mathclap{\hspace{24em}\cup \begin{cases}
+  &\rebreak{\cup \begin{cases}
       \left\{y_{[]}, z_{[]}\right\} & \exists [nm].\ x_{[nm]} @ [v]? \in \ecp{F}{[t]} \\
       \emptyset & \lnot \exists [nm].\ x_{[nm]} @ [v]? \in \ecp{F}{[t]}
   	\end{cases}}\\
   &\ecp{\icode{let x = (A [τ?]).ctorᵢ [y]; F}}{[t]} = \ecp{F}{[t]} \\
-  \mathclap{\hspace{34em}\cup \begin{cases}
+  &\rebreak{\cup \begin{cases}
      	\left\{y_{[]} \ | \ y \in [y]\right\} & x_{[]} @ [v]? \in \ecp{F}{[t]} \\
      	\left\{([y]_j)_{[nm]} @ [s]? \ | \ x_{ij :: [nm]} @ [s]? \in \ecp{F}{[t]} \right\} & x_{[]} @ [v]? \notin \ecp{F}{[t]}
   \end{cases}} \\
   &\ecp{\icode{let x = projᵢⱼ y; F}}{[t]} = \ecp{F}{[t]} \\
-  \mathclap{\hspace{36.5em}\cup \begin{cases}
+  &\rebreak{\cup \begin{cases}
     \left\{y_{ij :: [kl]} @ [s]? \ | \ x_{[kl]} @ [s]? \in \ecp{F}{[t]} \right\} & \exists [nm].\ x_{[nm]} @ [v] \in \ecp{F}{[t]} \\
     \emptyset & \lnot \exists [nm].\ x_{[nm]} @ [v]? \in \ecp{F}{[t]}
   \end{cases}}
 \end{align*}
 \endgroup
-In \icode{ret x}, only $x$ itself escapes. For \icode{case x of [F]}, we determine the escapees of each $F \in [F]$ and compute the resulting union of all escapees. In \icode{case' x of [ctorᵢ [y] ⇒ F]}, we use the same idea as for \icode{case}, but must also transfer escapees concerning $[y]$ over to $x$: Each escapee $([y]_m)_{[kj]} @ [s]?$ in branch $n$ corresponding to constructor $n$ is converted to an escapee $x_{nm :: [kj]} @ [s]?$. 
+In \icode{ret x}, only $x$ itself escapes. For \icode{case x of [F]}, we determine the escapees of each $F \in [F]$ and compute the resulting union of all escapees. In \icode{case' x of [ctorᵢ [y] ⇒ F]}, we use the same idea as for \icode{case}, but must also transfer escapees concerning $[y]$ over to $x$: each escapee $([y]_m)_{[kj]} @ [s]?$ in branch $n$ corresponding to constructor $n$ is converted to an escapee $x_{nm :: [kj]} @ [s]?$. 
 
 For all \icode{let x = e; F} function bodies, we will always have a case stating that if $x$ does not escape in $F$, then neither do we need to compute any additional escapees for $e$.
 
@@ -349,9 +350,9 @@ Elements of ExternUniqueFieldResult denote the result for queries that ask wheth
 \newcommand{\paath}{\mathrm{path}}
 
 \begin{alignat*}{3}
-	\eu &: \mathrlap{\ADTConst \times [\Ctor \times \Proj] \rightharpoonup \ExternUniqueFieldResult} \\
-	\eu&(A, \paath) &&= \\
-	\mathclap{\hspace{34em}\begin{cases}
+	&\eu &&: \mathrlap{\ADTConst \times [\Ctor \times \Proj] \rightharpoonup \ExternUniqueFieldResult} \\
+	&\eu&&(A, \paath) &&= \\
+	&\rebreak{\begin{cases}
 		?_r\ x^\tau\ [kl]	& A \in \dom(\gamma_{*_e}) \land \exists [ij] (x^\tau) \in \gamma_{*_e}(A).\ \exists [kl].\ [ij] ++ [kl] = \paath \\
 		*_r	& A \in \dom(\gamma_{*_e}) \land \exists [ij] (x^\tau) \in \gamma_{*_e}(A).\ \paath \leq_+ [ij] \land \paath \neq [ij] \\
 		*_r	& A \in \dom(\gamma_{*_e}) \land \exists [ij] \in \gamma_{*_e}(A).\ \paath \leq_+ [ij] \lor [ij] \leq_+ \paath \\
@@ -366,22 +367,22 @@ eu (``external unique'') computes the ExternUniqueFieldResult for a given extern
 \newcommand{\rest}{\mathrm{rest}}
 
 \begin{alignat*}{3}
-	\isUnique &: \mathrlap{\AttrType \times [\Ctor \times \Proj] \rightharpoonup \mathbb{B}} \\
-	\isUnique&(*\ \blacksquare, \paath) &&= \top \\
-	\isUnique&(*\ A\ [\tau_\arrg], []) &&= \top \\
-	\isUnique&(*\ A\ [\tau_\arrg], \paath@((i, j)::\rest)) &&= \\
-	\mathclap{\hspace{28em}\begin{cases}
+	&\isUnique &&: \mathrlap{\AttrType \times [\Ctor \times \Proj] \rightharpoonup \mathbb{B}} \\
+	&\isUnique&&(*\ \blacksquare, \paath) &&= \top \\
+	&\isUnique&&(*\ A\ [\tau_\arrg], []) &&= \top \\
+	&\isUnique&&(*\ A\ [\tau_\arrg], \paath@((i, j)::\rest)) &&= \\
+	&\rebreak{\begin{cases}
 		\isUnique(\gamma(A)\{A, [\tau_\arrg]\}_{ij}, \rest)& A \in \dom(\gamma) \\
 		\top & A \notin \dom(\gamma) \land \eu(A, \paath) = *_r \\
 		\bot & A \notin \dom(\gamma) \land \eu(A, \paath) =\ !_r \\
 		\isUnique([\tau_\arrg]_{x^\tau}, [kl]) & A \notin \dom(\gamma) \land eu(A, \paath) =\ ?_r\ x^\tau\ [kl]
 	\end{cases}} \\
-	\isUnique&(!\ \blacksquare, \paath) &&= \bot \\
-	\isUnique&(!\ A\ [\tau_\arrg], \paath) &&= \bot \\
-	\isUnique&(!\ [\tau_\param] \to \tau_\ret, \paath) &&= \bot
+	&\isUnique&&(!\ \blacksquare, \paath) &&= \bot \\
+	&\isUnique&&(!\ A\ [\tau_\arrg], \paath) &&= \bot \\
+	&\isUnique&&(!\ [\tau_\param] \to \tau_\ret, \paath) &&= \bot
 \end{alignat*}
 
-With isUnique, we compute whether a given field is unique in a given type. If the path points into an erased type, we assume that it is always unique, as we do not know anything about the type in question. Otherwise, if an attribute is shared, then every field within the type in question must also be shared. Finally, for types $A$ there are several cases: If $A$ is an ADT, we can proceed with the field denoted in the path after substitution eliminates variables in the ADT. If it is an external type, we use the information by eu and proceed with $[kl]$ in $[\tau_\arrg]_{x^\tau}$ when the result is $?_r\ x^\tau\ [kl]$, bouncing back and forth between external types and type parameters.
+With isUnique, we compute whether a given field is unique in a given type. If the path points into an erased type, we assume that it is always unique, as we do not know anything about the type in question. Otherwise, if an attribute is shared, then every field within the type in question must also be shared. Finally, for ADTDecls $A$ there are several cases: If $A$ is an ADT, we can proceed with the field denoted in the path after substitution eliminates variables in the ADT. If it is an external type, we use the information by eu and proceed with $[kl]$ in $[\tau_\arrg]_{x^\tau}$ when the result is $?_r\ x^\tau\ [kl]$, bouncing back and forth between external types and type parameters.
 
 \begin{alignat*}{3}
 	\gamma_* &: \mathrlap{\ADTConst \times [\AttrType] \to 2^{[\Ctor \times \Proj]}} \\
@@ -403,13 +404,13 @@ In $\gamma_*$, we accumulate all the unique fields of a given type with a given 
 isBorrowed combines our escape analysis and the information we have gathered about unique fields in order to check whether a function parameter with a specific type and a specific set of escapees for the function can be borrowed. First, the type must always be shared so that the function cannot make use of uniqueness. Secondly, the parameter itself cannot escape. And lastly, if the type is an ADT or an external type, none of the fields of the escapees for the parameter may be unique.
 
 \begin{alignat*}{3}
-	\delta_\mathbb{B} &: \mathrlap{\Const \to 2^\mathbb{N}} \\
-	\delta_\mathbb{B}&(c) &&= \begin{cases}
+	&\delta_\mathbb{B} &&: \mathrlap{\Const \to 2^\mathbb{N}} \\
+	&\delta_\mathbb{B}&&(c) &&= \begin{cases}
 		\left\{x \ |\ \isBorrowed(x, [\tau_\param]_x, \delta_Q(c)_x) \right\} & c \in \dom(\delta_Q) \\
 		\emptyset & c \notin \dom(\delta_Q)
 	\end{cases}\\
-	&\mathrlap{\text{where}\ \delta_\tau(c) = ([\tau_\param], \tau_\ret)} \\
-	&\mathrlap{\hspace{0.2em}\text{and}\ \delta_Q(c)_x \coloneqq \left\{y_{[ij]}@[t]? \ |\ y_{[ij]}@[t]? \in \delta_Q(c) \land y = x \right\}}
+	&\rebreak{\text{where}\ \delta_\tau(c) = ([\tau_\param], \tau_\ret)} \\
+	&\rebreak{\text{and}\ \delta_Q(c)_x \coloneqq \left\{y_{[ij]}@[t]? \ |\ y_{[ij]}@[t]? \in \delta_Q(c) \land y = x \right\}}
 \end{alignat*}
 
 With $\delta_\mathbb{B}$, we obtain a total function that tells us which parameters can be borrowed for each function in the program. If we have no escape information for a function, then no parameter can be borrowed.
@@ -467,13 +468,13 @@ Note that $(f, g) \notin \dom(\cdot \sqcup \cdot)$ if $\exists x \in \dom(f) \ca
 \newcommand{\inferVarsDash}{\mathrm{inferVars'}}
 
 \begin{alignat*}{3}
-	\inferVarsDash &: \mathrlap{\AttrType \times \AttrType \rightharpoonup (\Var \rightharpoonup \AttrType)} \\
-	\inferVarsDash&(m\ x^\kappa, \tau) &&= \emptyset \\
-	\inferVarsDash&(x^\tau, \tau) &&= \{ x^\tau \mapsto \tau \} \\
-	\inferVarsDash&(m\ \blacksquare, m\ \blacksquare) &&= \emptyset \\
-	\inferVarsDash&(m\ A\ [\tau_{\arrg_1}], m\ A\ [\tau_{\arrg_2}]) &&= \bigsqcup_i \inferVarsDash([\tau_{\arrg_1}]_i, [\tau_{\arrg_2}]_i) \\
-	\inferVarsDash&(!\ [\tau_{\param_1}] \to \tau_{\ret_1}, !\ [\tau_{\param_2}] \to \tau_{\ret_2}) &&= \\
-	&\mathrlap{\bigsqcup_i \inferVarsDash([\tau_{\param_1}]_i, [\tau_{\param_2}]_i) \sqcup \inferVarsDash(\tau_{\ret_1}, \tau_{\ret_2})}
+	&\inferVarsDash &&: \mathrlap{\AttrType \times \AttrType \rightharpoonup (\Var \rightharpoonup \AttrType)} \\
+	&\inferVarsDash&&(m\ x^\kappa, \tau) &&= \emptyset \\
+	&\inferVarsDash&&(x^\tau, \tau) &&= \{ x^\tau \mapsto \tau \} \\
+	&\inferVarsDash&&(m\ \blacksquare, m\ \blacksquare) &&= \emptyset \\
+	&\inferVarsDash&&(m\ A\ [\tau_{\arrg_1}], m\ A\ [\tau_{\arrg_2}]) &&= \bigsqcup_i \inferVarsDash([\tau_{\arrg_1}]_i, [\tau_{\arrg_2}]_i) \\
+	&\inferVarsDash&&(!\ [\tau_{\param_1}] \to \tau_{\ret_1}, !\ [\tau_{\param_2}] \to \tau_{\ret_2}) &&= \\
+	&\rebreak{\bigsqcup_i \inferVarsDash([\tau_{\param_1}]_i, [\tau_{\param_2}]_i) \sqcup \inferVarsDash(\tau_{\ret_1}, \tau_{\ret_2})}
 \end{alignat*}
 
 \newcommand{\inferVars}{\mathrm{inferVars}}
@@ -501,10 +502,10 @@ With pickTypes, we implement the mechanism that inferred types are preferred if 
 \newcommand{\inferTypeArgs}{\mathrm{inferTypeArgs}}
 
 \begin{alignat*}{3}
-	\inferTypeArgs &: \mathrlap{\ADT \times Ctor \times [\AttrType] \times [\AttrType?] \rightharpoonup [\AttrType]} \\
-	\inferTypeArgs&(a, i, [\tau_\arrg], [\tau_e?]) &&= \pickTypes([\tau_e?], [\mathrm{inferred}(y^\tau)])\\
-		& \mathrlap{\text{where } a_i = [\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt} \\
-		& \mathrlap{\text{and } \mathrm{inferred} = \inferVars([\tau_\field(x^\kappa_\adt, [y^\tau])], [\tau_\arrg]])}
+	&\inferTypeArgs &&: \mathrlap{\ADT \times Ctor \times [\AttrType] \times [\AttrType?] \rightharpoonup [\AttrType]} \\
+	&\inferTypeArgs&&(a, i, [\tau_\arrg], [\tau_e?]) &&= \pickTypes([\tau_e?], [\mathrm{inferred}(y^\tau)])\\
+		&\rebreak{\text{where } a_i = [\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt} \\
+		&\rebreak{\text{and } \mathrm{inferred} = \inferVars([\tau_\field(x^\kappa_\adt, [y^\tau])], [\tau_\arrg]])}
 \end{alignat*}
 
 Lastly, using inferTypeArgs, we infer type arguments for a constructor $i$ in an ADT $a$ with provided arguments types $[\tau_\arrg]$ and user-provided explicit argument types $[\tau_e?]$. Once again, both inferVars and pickTypes propagate their partiality to inferTypeAgs.
@@ -534,13 +535,13 @@ The \textsc{Program} rule states that in order to check a program $\delta_\tau$,
 \begin{mathpar}
 	$\inferrule[Downcast]{\tau \succcurlyeq \tau' \\ \nz(Z, x) \\ Z; \Gamma, x : \tau' \vdash F : \tret}{Z; \Gamma, x : \tau \vdash F : \tret}$
 \end{mathpar}
-\textsc{Duplicate} and \textsc{Weaken} allow manipulating variables of shared type in the context as if the context was a set and structural, and not a multiset and substructural. Note that $!\tau$ is an application of the $!(\cdot)$ function defined in \cref{sec:types} and that unique variables cannot be manipulated in this manner; their exact amount in the context needs to be tracked. Meanwhile, the \textsc{Downcast} rule allows applying the subtyping relation also defined in \cref{sec:types}.
+\textsc{Duplicate} and \textsc{Weaken} allow manipulating variables of shared type in the context as if the context was a set and structural. Note that $!\tau$ is an application of the $!(\cdot)$ function defined in \cref{sec:types} and that unique variables cannot be manipulated in this manner; their exact amount in the context needs to be tracked. Meanwhile, the \textsc{Downcast} rule allows applying the subtyping relation also defined in \cref{sec:types}.
 
 \begin{mathpar}
 	$\inferrule[$\blacksquare$-Cast]{Z; \Gamma, x : \weakenInner(\tau) \vdash F : \tret}{Z; \Gamma, x : \attr(\tau)\ \blacksquare \vdash F : \tret}$ \hspace{1.5em}
 	$\inferrule[$\blacksquare$-Erase]{Z; \Gamma, x : \attr(\tau)\ \blacksquare \vdash F : \tret}{Z; \Gamma, x : \tau \vdash F : \tret}$
 \end{mathpar}
-\textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase} enable us to work with erased types: We can cast to and from any type while retaining the outer attribute, but have to make all the inner attributes shared when casting to and then from an erased type.
+\textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase} enable us to work with erased types: We can cast to and from any type while retaining the outer attribute, but have to make all the inner attributes shared in the process.
 
 \begin{mathpar}
 	$\inferrule[Ret]{\nz(Z, x)}{Z; \Gamma, x : \tret \vdash \icode{ret x} : \tret}$ \hspace{1.5em}
@@ -592,7 +593,7 @@ In \textsc{Let-App}, our argument types need to match the parameter types and we
 	}
 	{Z; \Gamma, [y :\ !\tau_{\param_1}] \vdash \icode{let z := pap c [y]; F} : \tret}$
 \end{mathpar}
-For \icode{pap}, there are two separate rules, one for a \icode{pap} call that is effectively a full application, and one for a proper partial application. As our higher-order functions are always shared, our context needs to contain matching shared arguments that are consumed in the process. Depending on the rule, we either obtain a new higher-order function or the shared return value of the function. Note that to implement these rules within Lean, we need to ensure that the result of \icode{pap c [y]} does not rely on the uniqueness of its arguments and generate a variant of $c$ that does not rely on uniqueness instead.
+For \icode{pap}, there are two separate rules, one for a \icode{pap} call that is effectively a full application, and one for a proper partial application. As our higher-order functions are always shared, our context needs to contain matching shared arguments that are consumed in the process. Depending on the rule, we either obtain a new higher-order function or the shared return value of the function. Note that to implement these rules within Lean, we need to ensure that the result of \icode{pap c [y]} does not rely on the uniqueness of its arguments and must generate a variant of $c$ that does not rely on uniqueness instead.
 
 \begin{mathpar}
 	$\inferrule[Let-VarApp-Full]{\nz(Z, y) 
