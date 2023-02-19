@@ -1,1 +1,23 @@
 \chapter{Implementation}\label{sec:implementation}
+
+We have implemented a type checker for the type theory described in \cref{sec:theory} using Lean 4 at \url{https://github.com/mhuisi/Uniq}, targeting the model IR from \cref{sec:ir}. Note that we have not yet integrated our checker into Lean 4 itself. Unless otherwise stated below, our implementation follows the formal description in \cref{sec:theory}.
+
+\section{Deviations From Formal Description}
+
+To represent the global and partial functions $\gamma$, $\delta_\tau$, $\delta$, $\delta_{q_e}$, $\gamma_{*_e}$, as well as $\delta_Q$, we use a map type based on red-black trees. On the other hand, the function $\gamma_*$ that yields unique fields is not represented at all because the codomain is usually infinite, and instead we use isUnique for every escapee in isBorrowed directly.
+
+In order to perform the abstract interpretation in \cref{sec:escapeanalysis}, we use Kosaraju's algorithm \citep{sharir_strong-connectivity_1981} to compute strongly connected components in the call graph of functions $c \in \dom(\delta)$, traverse the resulting graph of strongly-connected components in reverse topological sort and then iteratively compute $\delta_Q(c)$ within each strongly connected component of mutually recursive functions until we reach a fixed point. Kosaraju's algorithm seems to be more suited to compute strongly-connected components in a functional language because it needs to maintain less state than Tarjan's algorithm \citep{tarjan_depth-first_1972}.
+
+We implement the type checker for the type theory in \cref{sec:checking} as follows:
+\begin{itemize}
+	\item $Z \in \ZeroedFields$ is implemented as a red-black tree based set, $\Gamma$ as a red-black tree based map from Var to AttrType, not a multiset. Since we know that variables are either unique or shared, all variables in $\Gamma$ can either be duplicated and forgotten freely, or there is only one of them in the context. Hence, we do not need to track the exact amount of each variable in the context, only whether it is unique or shared.
+	\item The partiality in the definitions for inferTypeArgs are propagated explicitly using  \lstinline|Option|.
+	\item The type rules are implemented by matching on the program and applying the corresponding unique rule.
+	\item When checking whether a type $\tau_1$ is applicable to a type $\tau_2$ in any rule, we do not check for equality, but instead a relation $\tau_1 \rightsquigarrow \tau_2$ that determines whether $\tau_1$ can be made equal to $\tau_2$ after applying the \textsc{Downcast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase} rules. Accordingly, we must adjust inferVars' to consider the application of these rules as well.
+	\item When using \textsc{Downcast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase}, it is important that we replace the old type with the new one, lest we could retain a unique attribute in our context after it has already been made shared. Hence, after checking whether $\tau_1 \rightsquigarrow \tau_2$ for $x : \tau_1 \in \Gamma$ in a rule, we set $\Gamma[x \mapsto \tau_2]$ to update the context. This can be understood as applying \textsc{Downcast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase} as needed just before the application of the rule.
+	\item To eliminate the last two rules for which we cannot easily decide when they need to be applied, \textsc{Duplicate} and \textsc{Forget}, we integrate their application carefully into the other rules by not consuming shared variables in rules that would otherwise consume them.
+	\item When applying a vector $[\tau_1]$ to $[\tau_2]$ for $[x : \tau_1] \subseteq \Gamma$, we apply \textsc{Downcast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase} while consuming unique variables and updating the context iteratively, so that e.g. \lstinline|c x x| fails for $x : *\ \blacksquare$ and $c : *\ \blacksquare \to *\ \blacksquare \to ...$ or $c :\ !\ \blacksquare \to *\ \blacksquare \to ...$.
+\end{itemize}
+
+\section{Examples}
+\todo{Come up with a couple of examples that show that the checker works}

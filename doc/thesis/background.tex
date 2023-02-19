@@ -1,11 +1,11 @@
 \chapter{Background}\label{sec:background}
 
-\section{Lean 4 Theorem Prover}
+\section{Lean 4 Theorem Prover}\label{sec:lean4}
 Lean 4 is a proof assistant and programming language developed primarily by Leonardo de Moura at Microsoft Research and Sebastian Ullrich at KIT with numerous open source contributions by other authors.
 
 Up to and including version 3, Lean served only as a proof assistant, i.e. an interactive tool where users can input proofs that are then checked by the proof assistant. Many proof assistants also implement proof-generating automation, so-called ``tactic languages'', to make the task of writing a perfectly formal proof by hand less tedious. In Lean 3, the previous version of Lean, the same term language was used for proofs, theorem statements, definitions, programs, type declarations, specifications, and implementing automation. We will go into some detail on how Lean uses a single unified language for all of these things in \cref{sec:dtt}. For automation, the term language was also evaluated by a separate interpreter for more efficient execution.
 
-Unfortunately, evaluating the term language using a separate interpreter would still yield inadequate performance, both for implementing more demanding automation and for implementing real world programs, which meant that such demanding programs were written in C++ instead and then made available to Lean using a foreign-function interface (FFI). \citep{ullrich_counting_2020}
+Unfortunately, evaluating the term language using a separate interpreter would still yield inadequate performance, both for implementing more demanding automation and for implementing real world programs, which meant that such demanding programs were written in C++ instead and then made available to Lean using a foreign-function interface (FFI) \citep{ullrich_counting_2020}.
 
 To improve on this, Lean 4 now implements its own self-hosted compiler toolchain for both a C backend and a work-in-progress LLVM backend, including its own IR, optimization pipeline and custom garbage collection algorithm. Being almost entirely self-hosted, Lean 4 is now also well capable of being used as a general purpose programming language.
 
@@ -41,9 +41,27 @@ One may reasonably wonder why one would ever use a purely functional language to
 
 One may also wonder whether code written in this imperative manner is about as efficient as real imperative code. Because of the mechanism described in \cref{sec:beans}, this is indeed the case if the code in question is written in such a way that every value is unique, which is usually the case for the kind of code that one would also write in an imperative language. Importantly, functional code will benefit from this as well, which means that we can write compositional, functional code that also updates values in-place instead of making new allocations in every single combinator. It must however be noted that our implementation of \lstinline|Array.groupBy| is actually an example of an imperative implementation that is unexpectedly inefficient. We will resolve this inefficiency in \cref{sec:beans} when it is instrumental to do so.
 
-For the rest of this thesis, we will not treat Lean 4 as a theorem prover, but instead as a purely functional programming language that implements dependent type theory.
+For most of this thesis, we will not treat Lean 4 as a theorem prover, but instead as a purely functional programming language that implements dependent type theory. For more details on Lean 4 as a programming language, we refer to the book Functional Programming in Lean by \cite{christiansen_functional_2023}.
 
 \section{Dependent Type Theory}\label{sec:dtt}
+As described in \cref{sec:lean4}, Lean uses a single language for programming and proving. It accomplishes this by implementing dependent type theory (DTT), a type theory powerful enough to declare mathematical objects, implement programs and write specifications and proofs for both. What follows is only a very brief introduction to some of the important details of Lean's type theory, and we recommend the book Theorem Proving in Lean 4 by \cite{avigad_theorem_2022} for a proper introduction.
+
+The central idea of DTT is that types are allowed to depend on terms. In most type theories, terms and types are entirely different constructs, and while terms have types, terms cannot be used in types. Removing this restriction blurs the line between programs and their static specification.
+
+There are several mechanisms required to make this work: 
+\begin{enumerate}
+	\item In a quantified type $\forall x.\ \tau(x)$, the variable $x$ is allowed to range over terms of a type (e.g. $x \triangleq n : \mathbb{N}$), not just types themselves as is the case in languages that support polymorphic functions $\forall \alpha.\ \tau(\alpha)$.
+	\item Terms in types can be reduced with the usual reduction rules of lambda calculus, e.g. $(\forall x.\ \tau((\lambda y.\ y)\ x)) \equiv (\forall x.\ \tau(x))$.
+	\item Support for inductive type families, which are essentially algebraic data types where each constructor creates a term in a type that can be parametrized by other terms. For example, we might declare a type $\lambda \alpha : \mathrm{Type}.\ \lambda n : \mathbb{N}.\ \mathrm{Vec}\ \alpha\ n$ for lists over a type $\alpha$ of size $n$ with constructors $\mathrm{nil} : \mathrm{Vec}\ \alpha\ 0$ and $\mathrm{cons} : \forall n : \mathbb{N}.\ \alpha \to \mathrm{Vec}\ \alpha\ n \to \mathrm{Vec}\ \alpha\ (n+1)$. Each inductive type family also yields a recursion principle that allows for pattern matching and using recursion on the value of a type to compute an accumulate value.
+\end{enumerate}
+
+For convenience, Lean's type theory also supports a separate type universe of propositions $\mathbb{P}$, the terms of which are types $p : \mathbb{P}$ with proof terms $h : p$ witnessing the truth of the proposition $p$. For example, if $\mathrm{refl} : \forall x.\ x = x$, we have $(\mathrm{refl}\ n) : (n = n) : \mathbb{P}$ and $(\mathrm{refl}\ n) : (n + 1 - 1 = n) : \mathbb{P}$ for $n : \mathbb{N}$, as $n + 1 - 1 \equiv n$. Meanwhile, there is no term $h : (n = n + 1) : \mathbb{P}$. For less trivial propositions, we use the recursion principles of inductive type families, which become induction principles if the accumulated value is a proposition $p : \mathbb{P}$. 
+
+What distinguishes propositions $p : \mathbb{P}$ from other types is that $\mathbb{P}$ is impredicative and proof-irrelevant, i.e. whenever we quantify over a proposition $p : \mathbb{P}$, the resulting type is again a proposition, and for proofs $h_1, h_2 : p$, we have $h_1 = h_2$. In other words, propositions are contained to $\mathbb{P}$ and all proofs of a proposition are considered equal, i.e. only their existence is relevant, not the concrete content of the proof. Hence, proofs are inherently non-computational; since the content of a proof is irrelevant, it can be erased. These two features allow Lean to introduce additional non-computational classical axioms into its universe of propositions $\mathbb{P}$, most prominently the axiom of choice.
+
+Putting all of these mechanisms together yields a type theory powerful enough to declare types like $\mathrm{Vec}\ \alpha\ n$ and all the usual objects that are used in mathematics, as well as logical operators like $\cdot \land \cdot$, $\exists x.\ p(x)$, $\cdot = \cdot$ and even well-founded recursion. Additionally, the term language is strong enough to write arbitrary programs, as well as classical proofs within $\mathbb{P}$.
+
+For a detailed formal description of Lean's type theory, we refer to \citep{carneiro_type_2019}.
 
 \section{Intermediate Representations for Lean 4}\label{sec:irs}
 

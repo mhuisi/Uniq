@@ -42,7 +42,7 @@ In all of the following sections, we use $[x]$ to denote a vector of elements $x
 
 Ctor and Proj denote the constructors and fields within a constructor, respectively. Const designates function names. Attr contains the attributes that are the main subject of our type theory; shared (!) and unique ($*$). 
 
-\sloppy Since the Lean 4 compiler erases type dependencies, we will limit ourselves to types that look like potentially recursive abstract data types. In $\mu\ x^\kappa_\adt.\ [[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt]$, $x^\kappa_\adt$ is the variable we use to refer back to the ADT itself, $[[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt]$ is a vector of constructors and $[\tau_\field(x^\kappa_\adt, [y^\tau])]$ denotes the types of the fields of the constructor, where $\tau_\field$ is parametrized by the variable $x^\kappa_\adt$ representing the ADT itself, as well as a vector $[y^\tau]$ of type parameters to the ADT. Constructors, projections and type parameters are assumed to be enumerated by intervals $[0, n)$, and so we write $(\mu\ x^\kappa_\adt.\ [[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt])_i \coloneqq [[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt]_i$ and $([\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt)_j \coloneqq [\tau_\field(x^\kappa_\adt, [y^\tau])]_j$, as well as $[y^\tau]_x \coloneqq x$. As Lean 4 code commonly interacts with external types and external code via its foreign function interface (FFI), we cannot assume that we can access an ADT declaration for every type. To deal with this, ADTs are instead identified by an ADTConst, the mapping of which is maintained in a global and partial function $\gamma \in \ADTDecls$. ADTConsts $A \notin \dom(\gamma)$ that appear in the program are regarded as external. Lastly, we demand that all $A \in \dom(\gamma)$ are fully propagated, i.e. that $\forall i\ j.\ \mathrm{propagate}(\gamma(A)_{ij}) = \gamma(A)_{ij}$ for the definition of propagate below.
+\sloppy Since the Lean 4 compiler erases type dependencies, we will limit ourselves to types that look like potentially recursive algebraic data types. In $\mu\ x^\kappa_\adt.\ [[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt]$, $x^\kappa_\adt$ is the variable we use to refer back to the ADT itself, $[[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt]$ is a vector of constructors and $[\tau_\field(x^\kappa_\adt, [y^\tau])]$ denotes the types of the fields of the constructor, where $\tau_\field$ is parametrized by the variable $x^\kappa_\adt$ representing the ADT itself, as well as a vector $[y^\tau]$ of type parameters to the ADT. Constructors, projections and type parameters are assumed to be enumerated by intervals $[0, n)$, and so we write $(\mu\ x^\kappa_\adt.\ [[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt])_i \coloneqq [[\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt]_i$ and $([\tau_\field(x^\kappa_\adt, [y^\tau])] \to *x^\kappa_\adt)_j \coloneqq [\tau_\field(x^\kappa_\adt, [y^\tau])]_j$, as well as $[y^\tau]_x \coloneqq x$. As Lean 4 code commonly interacts with external types and external code via its foreign function interface (FFI), we cannot assume that we can access an ADT declaration for every type. To deal with this, ADTs are instead identified by an ADTConst, the mapping of which is maintained in a global and partial function $\gamma \in \ADTDecls$. ADTConsts $A \notin \dom(\gamma)$ that appear in the program are regarded as external. Lastly, we demand that all $A \in \dom(\gamma)$ are fully propagated, i.e. that $\forall i\ j.\ \mathrm{propagate}(\gamma(A)_{ij}) = \gamma(A)_{ij}$ for the definition of propagate below.
 
 AttrType contains our types. $m\ x^\kappa$ and $x^\tau$ are the two kinds of variables that can occur only within an ADT; self-referring variables $x^\kappa$ have an associated (fixed) attribute and the variable only represents a parameterless type suffix, while variables $x^\tau$ can denote any type parameter $\tau \in \AttrType$. $m\ \blacksquare$ is an erased type, $m\ A\ [\tau_\arrg]$ is an ADT (or external type) $A$ parametrized by type arguments $[\tau_\arrg]$, and $!\ [\tau_\param \to \tau_\ret]$ is the type of a higher-order function. Finally, $\delta_\tau$ provides the parameter- and return types for all functions in the program, including external ones. This is a reasonable assumption because we can simply assign a type $[!\ \kappa_\param] \to \ !\ \kappa_\ret$ for Lean 4 functions with an unattributed function type $[\kappa_\param] \to \ \kappa_\ret$, or the most general and useless type $[!\ \blacksquare] \to \ !\ \blacksquare$ to all external functions for which we have no type information at all. For $\delta_\tau(c) = ([\tau_\param], \tau_\ret)$, we also demand that all the types are fully propagated, i.e. that $\forall \tau_\param \in [\tau_\param].\ \mathrm{propagate}(\tau_\param) = \tau_\param \land \mathrm{propagate}(\tau_\ret) = \tau_\ret$ for the definition of propagate below.
 
@@ -289,11 +289,13 @@ Next, we will define a couple of post-processing functions to make our applicati
 \end{alignat*}
 fd removes all dead escapees for a function of a particular arity by keeping only those that correspond to function parameters. This is mainly useful for performance because $\ecp{\cdot}{\cdot}$ accumulates escapees for all variables in a function, even local ones.
 
+\newcommand{\concat}{\mathrm{++}}
+
 \begin{alignat*}{3}
 	\fs &: \mathrlap{2^{\Escapee} \to 2^{\Escapee}} \\
 	\fs&(Q) &&= \left\{q \ |\ q \in Q \land \lnot \exists q' \in Q.\ q \neq q' \land q' \subset q\right\}
 \end{alignat*}
-Here, $x_{[i_1j_1]} @ [t_1]? \subset x_{[i_1j_1]++[i_2j_2]} @ [t_2]?$ asserts that $x_{[i_1j_1]} @ [t_1]?$ subsumes $x_{[i_1j_1]++[i_2j_2]} @ [t_2]?$. Hence, fs removes all escapees which are subsumed by another escapee.
+Here, $x_{[i_1j_1]} @ [t_1]? \subset x_{[i_1j_1]\concat[i_2j_2]} @ [t_2]?$ asserts that $x_{[i_1j_1]} @ [t_1]?$ subsumes $x_{[i_1j_1]\concat[i_2j_2]} @ [t_2]?$. Hence, fs removes all escapees which are subsumed by another escapee.
 
 \begin{alignat*}{1}
 	&\equiv_t : \Escapee \times \Escapee \to \mathbb{B} \\
@@ -323,8 +325,6 @@ Collapsing the escapees with the same tag effectively bounds the lattice: Becaus
 
 Finally, $\delta_Q$ computes the escapees of every function in the program and and uses $\delta_{q_e}$ to obtain escapees for some external functions.
 
-In order to perform the abstract interpretation, we use Kosaraju's algorithm\footnote{\todo{citation}} to compute strongly connected components in the call graph of functions $c \in \dom(\delta)$, traverse the resulting graph of strongly connected components in reverse topological sort and then iteratively compute $\delta_Q(c)$ within each strongly connected component of mutually recursive functions until we reach a fixed point.
-
 \section{Borrowing}\label{sec:borrowing}
 When checking whether a parameter can be borrowed, we do not need to check whether fields that are always shared escape, only fields that are unique if their outer value is unique. In this section, we will define the function $\delta_\mathbb{B}$ that tells us which parameters of a function can be borrowed when the function is applied. Henceforth, we will use $[x] \leq_+ [y]$ to denote that $[x]$ is a prefix of $[y]$.
 
@@ -353,7 +353,7 @@ Elements of ExternUniqueFieldResult denote the result for queries that ask wheth
 	&\eu &&: \mathrlap{\ADTConst \times [\Ctor \times \Proj] \rightharpoonup \ExternUniqueFieldResult} \\
 	&\eu&&(A, \paath) &&= \\
 	&\rebreak{\begin{cases}
-		?_r\ x^\tau\ [kl]	& A \in \dom(\gamma_{*_e}) \land \exists [ij] (x^\tau) \in \gamma_{*_e}(A).\ \exists [kl].\ [ij] ++ [kl] = \paath \\
+		?_r\ x^\tau\ [kl]	& A \in \dom(\gamma_{*_e}) \land \exists [ij] (x^\tau) \in \gamma_{*_e}(A).\ \exists [kl].\ [ij] \concat [kl] = \paath \\
 		*_r	& A \in \dom(\gamma_{*_e}) \land \exists [ij] (x^\tau) \in \gamma_{*_e}(A).\ \paath \leq_+ [ij] \land \paath \neq [ij] \\
 		*_r	& A \in \dom(\gamma_{*_e}) \land \exists [ij] \in \gamma_{*_e}(A).\ \paath \leq_+ [ij] \lor [ij] \leq_+ \paath \\
 		!_r	& A \in \dom(\gamma_{*_e}) \land \lnot \exists [ij] (x^\tau)? \in \gamma_{*_e}(A).\ \paath \leq_+ [ij] \lor [ij] \leq_+ \paath \\
@@ -588,7 +588,7 @@ In \textsc{Let-App}, our argument types need to match the parameter types and we
 	$\inferrule[Let-Pap-Part]{[\nz(Z, y)] 
 		\\ \delta_\tau(c) = ([\tau_\param], \tau_\ret)
 		\\ |[y]| = |[\tau_{\param_1}]| < |[\tau_\param]|
-		\\ [\tau_{\param_1}] ++ [\tau_{\param_2}] = [\tau_\param]
+		\\ [\tau_{\param_1}] \concat [\tau_{\param_2}] = [\tau_\param]
 		\\ Z; \Gamma, z :\ !\ [\tau_{\param_2}] \to \tau_\ret \vdash F : \tret
 	}
 	{Z; \Gamma, [y :\ !\tau_{\param_1}] \vdash \icode{let z := pap c [y]; F} : \tret}$
