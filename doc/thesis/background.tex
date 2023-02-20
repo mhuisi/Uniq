@@ -55,6 +55,8 @@ There are several mechanisms required to make this work:
 	\item Support for inductive type families, which are essentially algebraic data types where each constructor creates a term in a type that can be parametrized by other terms. For example, we might declare a type $\lambda \alpha : \mathrm{Type}.\ \lambda n : \mathbb{N}.\ \mathrm{Vec}\ \alpha\ n$ for lists over a type $\alpha$ of size $n$ with constructors $\mathrm{nil} : \mathrm{Vec}\ \alpha\ 0$ and $\mathrm{cons} : \forall n : \mathbb{N}.\ \alpha \to \mathrm{Vec}\ \alpha\ n \to \mathrm{Vec}\ \alpha\ (n+1)$. Each inductive type family also yields a recursion principle that allows for pattern matching and using recursion on the value of a type to compute an accumulate value.
 \end{enumerate}
 
+In addition to $\forall x : \tau_1.\ \tau_2(x)$, dependent type theories also always support dependent product types $(x : \tau_1) \times \tau_2(x)$ and dependent sum types $(x : \tau_1) + \tau_2(x)$.
+
 For convenience, Lean's type theory also supports a separate type universe of propositions $\mathbb{P}$, the terms of which are types $p : \mathbb{P}$ with proof terms $h : p$ witnessing the truth of the proposition $p$. For example, if $\mathrm{refl} : \forall x.\ x = x$, we have $(\mathrm{refl}\ n) : (n = n) : \mathbb{P}$ and $(\mathrm{refl}\ n) : (n + 1 - 1 = n) : \mathbb{P}$ for $n : \mathbb{N}$, as $n + 1 - 1 \equiv n$. Meanwhile, there is no term $h : (n = n + 1) : \mathbb{P}$. For less trivial propositions, we use the recursion principles of inductive type families, which become induction principles if the accumulated value is a proposition $p : \mathbb{P}$. 
 
 What distinguishes propositions $p : \mathbb{P}$ from other types is that $\mathbb{P}$ is impredicative and proof-irrelevant, i.e. whenever we quantify over a proposition $p : \mathbb{P}$, the resulting type is again a proposition, and for proofs $h_1, h_2 : p$, we have $h_1 = h_2$. In other words, propositions are contained to $\mathbb{P}$ and all proofs of a proposition are considered equal, i.e. only their existence is relevant, not the concrete content of the proof. Hence, proofs are inherently non-computational; since the content of a proof is irrelevant, it can be erased. These two features allow Lean to introduce additional non-computational classical axioms into its universe of propositions $\mathbb{P}$, most prominently the axiom of choice.
@@ -67,9 +69,55 @@ For a detailed formal description of Lean's type theory, we refer to \citep{carn
 
 \section{Counting Immutable Beans}\label{sec:beans}
 
-\section{Linear Type Theory}
+\section{Linear Type Theory}\label{sec:ltt}
+Type systems typically guarantee certain functional or extensional properties for a given program using a typing relation $\Gamma \vdash e : \tau$, where $\Gamma$ is a set of type judgements $x : \tau'$. The following \textsc{Exchange}, \textsc{Weaken} and \textsc{Contract} rules are usually assumed implicitly:
+\begin{mathpar}
+	$\inferrule[Exchange]{\Gamma_1, y : \tau_2, \Gamma_2, x : \tau_1, \Gamma_3 \vdash e : \tau}{\Gamma_1, x : \tau_1, \Gamma_2, y : \tau_2, \Gamma_3 \vdash e : \tau}$ \hspace{1.5em}
+	$\inferrule[Weaken]{\Gamma \vdash e : \tau}{\Gamma, x : \tau' \vdash e : \tau}$ \hspace{1.5em}
+	$\inferrule[Contract]{\Gamma, x : \tau', x : \tau' \vdash e : \tau}{\Gamma, x : \tau' \vdash e : \tau}$
+\end{mathpar} 
+In other words, judgements in the context can be reordered, discarded and duplicated freely.
+
+In the formal descriptions of dependent type theories, like the one described in \cref{sec:dtt}, \textsc{Exchange} is inhibited, because $\tau_2$ may depend on $x$, which induces an order of declaration on variables in the context. But if we want to guarantee only extensional properties for $e$, \textsc{Weaken} and \textsc{Contract} can always be freely assumed, as there is nothing to gain from retaining the exact count of every judgement in the context. 
+
+However, if we wish to guarantee non-functional or intensional properties for a given program, then discarding the \textsc{Weaken} and \textsc{Contract} rules can be useful. And indeed doing just that constitutes the core idea of substructural type theories: By retaining the exact number of each judgement in the context, we can use typing rules to count objects in our program to ensure various kinds of intensional properties, like for example information flows \citep{choudhury_dependent_2022}.
+
+However, in most substructural type theories, the extra detail in the context is used to count variable uses. \cite{girard_linear_1987} was the first to notice that not assuming \textsc{Weaken} and \textsc{Contract} allows one to define so-called linear logics with dualities that allow reasoning about resource usage, and \cite{wadler_linear_1990} transports this idea to form a linear type theory with a set of entirely separate linear and non-linear types prefixed by $!$, even on the term level. In both, discarding \textsc{Weaken} and \textsc{Contract} is used to enforce the invariant that linear variables can only be used exactly once. \cite{wadler_is_1991} then goes on to define \textsc{Dereliction} and \textsc{Promotion} rules that allow coercing a non-linear type to a linear type, as well as a ``steadfast'' type system where there is no coercion between linear and non-linear types, but both use the same term language. 
+
+With \textsc{Promotion} and \textsc{Dereliction}, linear types make a guarantee for the future: We do not know whether this variable has always been linear, but now that it is, we guarantee that it will be used exactly once. Meanwhile, in Wadler's ``steadfast'' version of the type system, as there is no coercion from non-linear to linear types, a linear variable has and will always be used exactly once. In a type system with \textsc{Promotion} and \textsc{Dereliction}, linearity is hence unsuited to guarantee the uniqueness of a variable, as it may have been duplicated in the past, an issue that is acknowledged by \cite{wadler_is_1991}. For linear type systems where linearity is guaranteed from construction onwards, \cite{chirimar_reference_1996} prove that the linearity of a variable implies the uniqueness of the associated reference.
+
+Future linear type systems \citep{goos_observers_1992}\citep{atkey_syntax_2018}\citep{bernardy_linear_2018}\citep{brady_idris_2021}\citep{choudhury_graded_2021} \citep{li_linear_2022}\citep{spiwack_linearly_2022} always adopt one of these two approaches and either allow for a non-linear to linear coercion while attempting to guarantee linearity from the construction of a value onwards, or no coercion at all, thus cementing the idea of ``linearity'' referring to either ``always linear'' or ``linear from this point onwards''.
+
+One common refinement of linear type theory is to allow the use of \textsc{Weaken}, but not \textsc{Contract}, specifically when the type theory only wants to guarantee that a reference is unique, but not that it is used. These type theories are also knows as ``affine'' \citep{tov_practical_2011}, though the term is often conflated with ``linear''.
+
+Amongst others, the following types are commonly present in linear type theories:
+\begin{itemize}
+	\item $\tau_1 \multimap \tau_2$ for the type of linear functions that consume an argument of type $\tau_1$ on application
+	\item $(!\tau_1) \multimap \tau_2$ for the type of non-linear functions that consume a non-linear argument of type $\tau_1$ on application and yield a $\tau_2$ that can be made non-linear through dereliction
+	\item $\tau_1 \otimes \tau_2$ for the type of multiplicative linear products, where both arguments of type $\tau_1$ and $\tau_2$ are consumed on construction, and then re-obtained through pattern matching on the resulting value
+	\item $\tau_1 \oplus \tau_2$ for the type of linear sums, where one of the arguments of type $\tau_1$ and $\tau_2$ is consumed depending on which constructor is used, and then re-obtained through pattern matching on the resulting value
+\end{itemize}
 
 \section{Quantitative Type Theory}
+Quantitative type theory (QTT) applies the idea of linear type theory to dependent type theory. 
+
+In linear type theories, the \textsc{App} rule is typically stated in a manner similar to the following in order to distribute the needed amount of judgements to both expressions:
+\begin{mathpar}
+	$\inferrule[App]{\Gamma_1 \vdash e_1 : \tau_1 \multimap \tau_2 \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash e_1\ e_2 : \tau_2}$
+\end{mathpar}
+When omitting the \textsc{Exchange} rule in dependent type theory, it is not clear that splitting the context into $\Gamma_1$ and $\Gamma_2$ is always possible, since types in $\Gamma_2$ may depend on variables in $\Gamma_1$. This seemingly technical issue induces a semantic problem as well: Which occurrences of a variable constitute a use? For example, what about occurrences in types?
+
+After this issue was left unsolved for a long time, \cite{lindley_i_2016} resolved it by introducing a third kind of type to linear type theory, resulting in the three kinds of type ``linear'' (denoted as $1$), ``non-linear'' (denoted as $\omega$) and ``erased'' (denoted as $0$). ``erased'' specifies that a type or a term within DTT is not computationally relevant and will be erased by the compiler. Erased terms or types can only be used in other erased terms or types, and types are always erased. Finally, when a linear variable is used, it becomes erased, which justifies the use of $1$ to denote linear types and $0$ to denote erased types. \textsc{Exchange} is only omitted for variables of type $0$. In \textsc{App}, since we do not need to count the uses of variables of type $0$, we can freely distribute variables of type $1$ and $\omega$ to either $\Gamma_1$ or $\Gamma_2$, but duplicate all variables of type $0$ in their given order to $\Gamma_1$ and $\Gamma_2$. In other words, both the technical and the semantic issue are resolved at once. Quantitative type theory also retains the spirit of linear typing in that non-linear types can be coerced to linear types, which can subsequently be erased by using them in a non-erased term.
+
+The implementations of QTT by \cite{lindley_i_2016} and \cite{atkey_syntax_2018} use an additional trick to make the description of the type theory more compact. As seen in \cref{sec:ltt}, while linear type theories usually denote linearity on the type $\tau$, quantitative type theory instead denotes it on the binder $:$ in $x : \tau$, which leads to $0$, $1$ and $\omega$ not simply being kinds of types, but ``quantities'' on the binders. Instead, there are only non-linear types, and the quantity on the binder determines the substructural restrictions on the variable. The context now instead contains quantified type judgements $x :[q] \tau$ for $q \in \{0, 1, \omega\}$ and the types described in \cref{sec:ltt} become the following dependent types:
+\begin{itemize}
+	\item $((x :[1]\ \tau_1) \to \tau_2) \triangleeq (\tau_1 \multimap \tau_2)$
+	\item $((x :[1]\ \tau_1) \times (y :[1]\ \tau_2) \times \mathbb{1}) \triangleeq (\tau_1 \otimes \tau_2)$
+	\item $((x :[1]\ \tau_1) + (y :[1]\ \tau_2) + \mathbb{0}) \triangleeq (\tau_1 \oplus \tau_2)$
+\end{itemize}
+Note that by denoting the linear quantity on the binder in $(x :[1]\ \tau_1) \to \tau_2$, we cannot specify a quantity for $\tau_2$ any more, as we could in linear type theory using $!$. But since we can always coerce $1$ to $\omega$, we can simply assume $\tau_2$ to be linear.
+
+Finally, it is worth pointing out that both \cite{lindley_i_2016} and \cite{atkey_syntax_2018} specify a generic framework for adding additional quantities to the type theory, allowing, for example, the additional introduction of a $\leq1$ quantity representing affinity, or more accurate accounting of uses $n > 1$.
 
 \section{Uniqueness Type Theory}\label{sec:uniqueness}
 

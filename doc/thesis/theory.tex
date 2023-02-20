@@ -318,7 +318,7 @@ Collapsing the escapees with the same tag effectively bounds the lattice: Becaus
 \begin{align*}
 	\delta_Q &: \mathrlap{\Const \rightharpoonup 2^{\Escapee}} \\
 	\delta_Q&(c) = \begin{cases}
-		\fs(|\icode{[y]}|, \ct(\fd(\ecp{\icode{F}}{[\#\text{const c}]}))) & c \in \dom(\delta) \land \delta(c) = \lambda\ \icode{[y]}.\ \icode{F} \\
+		\fd(|\icode{[y]}|, \fd(\ct(\ecp{\icode{F}}{[\#\text{const c}]}))) & c \in \dom(\delta) \land \delta(c) = \lambda\ \icode{[y]}.\ \icode{F} \\
 		\delta_{q_e}(c) & c \notin \dom(\delta) \land c \in \dom(\delta_{q_e})
 	\end{cases}
 \end{align*}
