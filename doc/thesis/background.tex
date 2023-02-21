@@ -98,6 +98,16 @@ Amongst others, the following types are commonly present in linear type theories
 	\item $\tau_1 \oplus \tau_2$ for the type of linear sums, where one of the arguments of type $\tau_1$ and $\tau_2$ is consumed depending on which constructor is used, and then re-obtained through pattern matching on the resulting value
 \end{itemize}
 
+The various applications of linear type theory include the following:
+\begin{itemize}
+	\item Threading a functional program and enforcing an execution order to replace the use of monads for I/O in functional languages with a linear equivalent \citep{vries_making_2009}\citep{bernardy_linear_2018}\citep{brady_idris_2021}
+	\item Ensuring resource- and memory-safety so that resources and memory cannot be freed multiple times \citep{weiss_oxide_2021}
+	\item Performing efficient in-place updates and enabling the use of arrays in functional languages \citep{vries_making_2009}\citep{bernardy_linear_2018}
+	\item Specifying usage protocols for types \citep{brady_idris_2021}
+	\item Guiding program synthesis \citep{brady_idris_2021}
+	\item Inverting the computation of functions \citep{matsuda_sparcl_2020}
+\end{itemize}
+
 \section{Quantitative Type Theory}
 Quantitative type theory (QTT) applies the idea of linear type theory to dependent type theory. 
 
@@ -109,17 +119,26 @@ When omitting the \textsc{Exchange} rule in dependent type theory, it is not cle
 
 After this issue was left unsolved for a long time, \cite{lindley_i_2016} resolved it by introducing a third kind of type to linear type theory, resulting in the three kinds of type ``linear'' (denoted as $1$), ``non-linear'' (denoted as $\omega$) and ``erased'' (denoted as $0$). ``erased'' specifies that a type or a term within DTT is not computationally relevant and will be erased by the compiler. Erased terms or types can only be used in other erased terms or types, and types are always erased. Finally, when a linear variable is used, it becomes erased, which justifies the use of $1$ to denote linear types and $0$ to denote erased types. \textsc{Exchange} is only omitted for variables of type $0$. In \textsc{App}, since we do not need to count the uses of variables of type $0$, we can freely distribute variables of type $1$ and $\omega$ to either $\Gamma_1$ or $\Gamma_2$, but duplicate all variables of type $0$ in their given order to $\Gamma_1$ and $\Gamma_2$. In other words, both the technical and the semantic issue are resolved at once. Quantitative type theory also retains the spirit of linear typing in that non-linear types can be coerced to linear types, which can subsequently be erased by using them in a non-erased term.
 
-The implementations of QTT by \cite{lindley_i_2016} and \cite{atkey_syntax_2018} use an additional trick to make the description of the type theory more compact. As seen in \cref{sec:ltt}, while linear type theories usually denote linearity on the type $\tau$, quantitative type theory instead denotes it on the binder $:$ in $x : \tau$, which leads to $0$, $1$ and $\omega$ not simply being kinds of types, but ``quantities'' on the binders. Instead, there are only non-linear types, and the quantity on the binder determines the substructural restrictions on the variable. The context now instead contains quantified type judgements $x :[q] \tau$ for $q \in \{0, 1, \omega\}$ and the types described in \cref{sec:ltt} become the following dependent types:
+The implementations of QTT by \cite{lindley_i_2016} and \cite{atkey_syntax_2018} use an additional trick to make the description of the type theory more compact. As seen in \cref{sec:ltt}, while linear type theories usually denote linearity on the type $\tau$, quantitative type theory instead denotes it on the binder $:$ in $x : \tau$, which leads to $0$, $1$ and $\omega$ not simply being kinds of types, but ``quantities'' on the binders $x :_q \tau$ for $q \in \{0, 1, \omega\}$ in the context. Instead, there are only linear types, and the quantity on the binder determines the substructural restrictions on the variable. The typing judgement $\Gamma \vdash e :_\sigma \tau$ is quantified as well to track whether $e$ is being checked in a computationally relevant or irrelevant context, and $\sigma$ is restricted to $\{0, 1\}$ to ensure admissibility of substitution \citep{atkey_syntax_2018}. The types described in \cref{sec:ltt} now become the following dependent types:
 \begin{itemize}
-	\item $((x :[1]\ \tau_1) \to \tau_2) \triangleeq (\tau_1 \multimap \tau_2)$
-	\item $((x :[1]\ \tau_1) \times (y :[1]\ \tau_2) \times \mathbb{1}) \triangleeq (\tau_1 \otimes \tau_2)$
-	\item $((x :[1]\ \tau_1) + (y :[1]\ \tau_2) + \mathbb{0}) \triangleeq (\tau_1 \oplus \tau_2)$
+	\item $((x :_1 \tau_1) \to \tau_2) \triangleeq (\tau_1 \multimap \tau_2)$
+	\item $((x :_1 \tau_1) \otimes (y :_1 \tau_2) \otimes \mathbb{1}) \triangleeq (\tau_1 \otimes \tau_2)$
+	\item $((x :_1 \tau_1) \oplus (y :_1 \tau_2) \oplus \mathbb{0}) \triangleeq (\tau_1 \oplus \tau_2)$
 \end{itemize}
-Note that by denoting the linear quantity on the binder in $(x :[1]\ \tau_1) \to \tau_2$, we cannot specify a quantity for $\tau_2$ any more, as we could in linear type theory using $!$. But since we can always coerce $1$ to $\omega$, we can simply assume $\tau_2$ to be linear.
+It is worth pointing out that both \cite{lindley_i_2016} and \cite{atkey_syntax_2018} specify a generic framework for adding additional quantities to the type theory, allowing, for example, the additional introduction of a $\leq\hspace{-0.3em}1$ quantity representing affinity, or more accurate accounting of uses $n > 1$.
 
-Finally, it is worth pointing out that both \cite{lindley_i_2016} and \cite{atkey_syntax_2018} specify a generic framework for adding additional quantities to the type theory, allowing, for example, the additional introduction of a $\leq1$ quantity representing affinity, or more accurate accounting of uses $n > 1$.
+Finally, note that by denoting the linear quantity on the binder in $(x :_1 \tau_1) \to \tau_2$, we cannot specify a quantity for $\tau_2$ any more, as we could in linear type theory using $!$. Instead, in checking an application $f\ (g\ e) :_1 \tau_3$ for $f :_1 (x :_q \tau_2) \to \tau_3$, $g :_1 (x :_1 \tau_1) \to \tau_2$ and $e :_1 \tau_1$, we demand $q$ instances of the resources $\Gamma$ required to check $g\ e :_1 \tau_2$. In other words, if we need $q$ instances of a return value that requires $\Gamma$ resources to produce, we instead demand $q \cdot \Gamma$ resources in our context, pretending that we applied the function $q$ times to obtain $q$ instances of the return value. This way, quantities need not be specified on return values, and resources for the arguments are consumed based on the required amount of the return value.
+
+Quantitative type theory combines the benefits of linear type theory and dependent type theory, leading to far greater capabilities when specifying protocols for types \citep{brady_idris_2021}. The introduction of an erasure quantity to combine the two type theories also allows for finer-grained specification of terms that are not computationally relevant but would otherwise be expensive to compute \citep{brady_idris_2021}.
 
 \section{Uniqueness Type Theory}\label{sec:uniqueness}
+\cite{smetsers_guaranteeing_1994} and \cite{barendsen_uniqueness_1996} introduce a type system for the Clean programming language with the goal of guaranteeing referential uniqueness to enable many of the applications described in \cref{sec:ltt}. The core idea is to use the linear and non-linear types of linear type systems, but instead of keeping them entirely separate or allowing for a coercion from non-linear types to linear types, the coercion is inverted, allowing for the conversion of linear types to non-linear types. The motivation for this idea is that in a linear type system, using the coercion from non-linear to linear precludes linearity from guaranteeing the referential uniqueness of a variables.
+
+Respectively, as long as there is a coercion from linear types to non-linear types, uniqueness type systems refer to linear types as ``unique'' and non-linear types as ``non-unique'' or ``shared''. The temporal guarantee becomes inverted: While linear types ensure that a variable is always used exactly once in the future, uniqueness types ensure that a variable has always been used exactly once in the past \citep{vries_making_2009}\citep{sergey_linearity_2022}.
+
+Unfortunately, the original type system was formulated in terms of graph rewriting and not lambda calculus, which meant that advances by the rest of the type theory research community were difficult to transfer over to uniqueness typing, a deficit that was only resolved much later by \cite{vries_making_2009}. In his thesis, de Vries first provides a uniqueness type system based on lambda calculus resembling that of Clean and then iteratively refines it with the goal of introducing higher-rank polymorphism \citep{peyton_jones_practical_2007}.
+
+In uniqueness type systems, there are a number of challenges that do not appear in linear type systems. The first is that types are inherently less composable. In linear type theory, if \textsc{Dereliction} and \textsc{Promotion} are assumed, non-linear and linear types can be mixed freely, as long the provided resources are present to create them. For example, $!(\tau_1 \otimes \tau_2)$ is just a non-linear product, whereas $(!\tau_1) \otimes \tau_2$ is a linear product where the first type is non-linear. If $\tau_1$ is linear and \textsc{Dereliction} and \textsc{Promotion} are not assumed, the former example $!(\tau_1 \otimes \tau_2)$ is malformed, as deconstructing the product and obtaining the linear $\tau_1$ will not actually yield us a guarantee that the corresponding value has not been shared in the past, as e.g. the product could have been shared. The same is true for uniqueness type systems.
 
 \section{Borrowing}\label{sec:borrowingbackground}
 
