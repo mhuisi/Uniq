@@ -2,7 +2,7 @@
 
 We have implemented a type checker for the type theory described in \cref{sec:theory} using Lean 4 at \url{https://github.com/mhuisi/Uniq}, targeting the model IR from \cref{sec:ir}. Note that we have not yet integrated our checker into Lean 4 itself. Unless otherwise stated below, our implementation follows the formal description in \cref{sec:theory}.
 
-\section{Deviations From Formal Description}
+\section{Deviations From Specification}
 
 To represent the global and partial functions $\gamma$, $\delta_\tau$, $\delta$, $\delta_{q_e}$, $\gamma_{*_e}$, as well as $\delta_Q$, we use a map type based on red-black trees. On the other hand, the function $\gamma_*$ that yields unique fields is not represented at all because the codomain is usually infinite, and instead we use isUnique for every escapee in isBorrowed directly.
 

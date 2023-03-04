@@ -42,7 +42,7 @@
 }
 
 \lstnewenvironment{ifcode}{\\\minipage{\linewidth}\lstset{xleftmargin=1.48em, language=ir-if}}{\endminipage\hfill\allowbreak}
-\lstnewenvironment{code}{\\\minipage{\linewidth}\lstset{xleftmargin=1.48em}}{\endminipage\hfill\allowbreak}
+\lstnewenvironment{code}{\minipage{\linewidth}\lstset{xleftmargin=1.48em}}{\endminipage\hfill\allowbreak}
 
 \definecolor{keywordcolor}{rgb}{0.7, 0.1, 0.1}   % red
 \definecolor{commentcolor}{rgb}{0.4, 0.4, 0.4}   % grey
@@ -82,7 +82,6 @@ Dinge auf Englisch
 \input{designspace.tex}
 \input{theory.tex}
 \input{implementation.tex}
-\input{evaluation.tex}
 \input{furtherwork.tex}
 \input{relatedwork.tex}
 \input{conclusion.tex}

@@ -323,7 +323,7 @@ Case
   nonzero(Z, x)
   [Z; Γ, x : m A [τ_arg] ⊢ F : τ_ret']
 Z; Γ, x : m A [τ_arg] ⊢ case x of [F] : τ_ret'
-
+ 
 Case'
   nonzero(Z, x)
   γ(A) = μ x_κ_adt. [c]
