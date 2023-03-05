@@ -1,49 +1,44 @@
 \chapter{Related Work}\label{sec:relatedwork}
 In this chapter, we will briefly cover other approaches that are similar to ours.
 
-\subsubsection{Linear Haskell}
-Linear Haskell \citep{bernardy_linear_2018} is a lazy functional language with support for properly linear types, but no borrowing. It supports an \lstinline|MArray| type with efficient destructive updates and a function \lstinline|freeze| that can convert a linear \lstinline|MArray| to a non-linear \lstinline|Array|. As described in \cref{sec:qtt}, \lstinline|MArray| constructors use continuation passing. Additionally, an \lstinline|MArray| itself is not allowed to contain linear values. Linear Haskell also has experimental support for multiplicity polymorphism and multiplicity inference.
+\paragraph{Linear Haskell} \citep{bernardy_linear_2018} is a lazy functional language with support for properly linear types, but no borrowing. It supports an \lstinline|MArray| type with efficient destructive updates and a function \lstinline|freeze| that can convert a linear \lstinline|MArray| to a non-linear \lstinline|Array|. As described in \cref{sec:qtt}, \lstinline|MArray| constructors use continuation passing. Additionally, an \lstinline|MArray| itself is not allowed to contain linear values. Linear Haskell also has experimental support for multiplicity polymorphism and multiplicity inference.
 
 \cite{spiwack_linearly_2022} resolve some of these shortcomings by introducing a language of linear capabilities on top of Linear Haskell. The uniqueness of a type is still a library design decision, but constructors do not need to be stated in continuation-passing style anymore. Arrays are allowed to contain other unique types and there is a borrowing mechanism both for unique types within unique types and unique types that are used in a read-only manner in functions. 
 
 Unfortunately, linear constraints still have to be unpacked explicitly in the term language and the resulting system is quite complex. We do however think that the general idea of decoupling values from their linear capabilities and enabling libraries to provide complex capabilities of their own may prove to be a fruitful avenue of research.
 
-\subsubsection{Idris 2}
-Idris 2 \citep{brady_idris_2021} is a dependently typed functional language with support for quantitative type theory. As such, its substructural type system has the same properties as that of Linear Haskell, but also supports an erasure quantity. Dependent type theory enables some additional applications, like specifying linear usage protocols and simulating session types \citep{honda_types_1993}.
+\paragraph{Idris 2} \citep{brady_idris_2021} is a dependently typed functional language with support for quantitative type theory. As such, its substructural type system has the same properties as that of Linear Haskell, but also supports an erasure quantity. Dependent type theory enables some additional applications, like specifying linear usage protocols and simulating session types \citep{honda_types_1993}.
 
 Idris, the precursor to Idris 2, has support for what the authors call ``uniqueness types'' as well \citep{brady_type_2017}. Idris' ``uniqueness types'' are what we call ``invariably unique types'' in \cref{sec:ltt}, though Idris' linear types need not be consumed and are hence affine. Compound data types are either declared to be inherently unique or non-unique, and there is no coercion between the two. It also supports a restrictive notion of borrowing that allows pattern matching on borrowed values, but no further inspection. Due to the lack of an erasure quantity, the combination of dependent and linear types is limited.
 
-\subsubsection{ATS}
-ATS \citep{shi_linear_2013} is a dependently typed language with support for invariably unique types to ensure safe resource-usage and an extensive foreign function interface. Pointers to resources consist of two components: the reference to the resource, as well as a linear value that witnesses that the resource has not been freed yet. 
+\paragraph{ATS} \citep{shi_linear_2013} is a dependently typed language with support for invariably unique types to ensure safe resource-usage and an extensive foreign function interface. Pointers to resources consist of two components: the reference to the resource, as well as a linear value that witnesses that the resource has not been freed yet. 
 
 There does not appear to be a safe borrowing mechanism or a safe coercion between unique and shared types, but library functions can assert that a reference is not consumed by a function. There also seems to be support for syntactic sugar that reduces the amount of explicit linear values being passed around by implicitly managing a context of linear values, similar in spirit to the apporach of \cite{spiwack_linearly_2022}.
 
-\subsubsection{Clean}
-Clean \citep{smetsers_guaranteeing_1994} is the functional language that introduced the concept of uniqueness typing. It supports uniqueness types, polymorphism for uniqueness attributes, as well as type inference. \cite{vries_making_2009} provide a type theory description for Clean that uses lambda calculus as its term language. 
+\paragraph{Clean} \citep{smetsers_guaranteeing_1994} is the functional language that introduced the concept of uniqueness typing. It supports uniqueness types, polymorphism for uniqueness attributes, as well as type inference. \cite{vries_making_2009} provide a type theory description for Clean that uses lambda calculus as its term language. 
 
 As previously discussed in \cref{sec:designspace}, Clean uses invariably unique types for higher-order functions. Its borrowing mechanism follows \cite{wadler_linear_1990} and only allows borrowing in expressions that produce primitive types, so that borrowed variables are guaranteed not to escape. In terms of applications, Clean uses uniqueness for destructive updates, as well as safe I/O.
 
-\subsubsection{Cogent}
-Cogent \citep{oconnor_cogent_2021} is a non-recursive functional language designed for systems programming with extensive FFI capabilities, delegating I/O and recursive programs to C. It features a certifying compiler that produces proofs that the generated program is a refinement of the original Cogent program using an Isabelle/HOL \citep{nipkow_isabellehol_2002} embedding. With these certificates, it is possible to prove programs correct within Isabelle/HOL. 
+\paragraph{Cogent} \citep{oconnor_cogent_2021} is a non-recursive functional language designed for systems programming with extensive FFI capabilities, delegating I/O and recursive programs to C. It features a certifying compiler that produces proofs that the generated program is a refinement of the original Cogent program using an Isabelle/HOL \citep{nipkow_isabellehol_2002} embedding. With these certificates, it is possible to prove programs correct within Isabelle/HOL. 
 
 It also features invariably unique types to ensure safe resource usage and enable destructive updates, as well as a borrowing mechanism based on observer types \cite{goos_observers_1992}, polymorphism and type inference. Since it uses uniqueness to ensure safe resource use, there is no coercion from unique to non-unique types. Higher-order functions are always fully applied and cannot capture variables in their closure.
 
-\subsubsection{Granule}
-Granule \citep{orchard_quantitative_2019} is a functional programming language that acts as a framework for linear types, indexed types and graded modal types. \cite{sergey_linearity_2022} add uniqueness types to Granule as a separate modality and use them for efficient destructive updates. Their type system does not support nested uniqueness types, borrowing, type inference or uniqueness polymorphism. Higher-order functions are implemented using properly linear types. 
+\paragraph{Granule} \citep{orchard_quantitative_2019} is a functional programming language that acts as a framework for linear types, indexed types and graded modal types. \cite{sergey_linearity_2022} add uniqueness types to Granule as a separate modality and use them for efficient destructive updates. Their type system does not support nested uniqueness types, borrowing, type inference or uniqueness polymorphism. Higher-order functions are implemented using properly linear types. 
 
-\subsubsection{Futhark}
-Futhark \citep{henriksen_futhark_2017} is a functional data-parallel language intended for GPU code. It uses an alias analysis in order to support efficient in-place updates on arrays only: If an array has been aliased in the past, then at least all of its aliases may not be used after the in-place update. This allows for some greater flexibility, where arrays can become temporarily aliased. Across function boundaries, invariably unique types are used to ensure the uniqueness of arrays, not the full aliasing information. 
+\paragraph{Futhark} \citep{henriksen_futhark_2017} is a functional data-parallel language intended for GPU code. It uses an alias analysis in order to support efficient in-place updates on arrays only: If an array has been aliased in the past, then at least all of its aliases may not be used after the in-place update. This allows for some greater flexibility, where arrays can become temporarily aliased. Across function boundaries, invariably unique types are used to ensure the uniqueness of arrays, not the full aliasing information. 
 
 There are dedicated type system rules for common array operations and variable uses are classified as ``consuming'' or ``observing''. This allows Futhark to implement a form of borrowing where observing and consuming operations are used in an alternating manner, such that an array can only be observed arbitrarily often before it is consumed, after which it cannot be observed or consumed anymore.
 
 There is no notion of uniqueness polymorphism or type inference. There is also no support for letting users implement custom consumers of higher-order functions. The built-in higher-order operators always fully apply the higher-order functions that they are passed and arrays in the closure of the higher-order function are not allowed to be consumed within the function.
 
-\subsubsection{Affe}
+\paragraph{Affe} \citep{radanne_kindly_2020} is an impure functional language with support for properly linear and affine types, borrowing, polymorphism and type inference. Higher-order functions that contain linear values in their closure are again linear.
 
-\subsubsection{Vault}
+It supports the notion of an ``explicit borrow'' where the borrowee is allowed to update the borrowed value, but is still required to use it linearly. This is necessary because Affe is impure; in a purely functional language, we would instead just return the updated value regardless of whether we are using a substructural type system or not.
 
-\subsubsection{Mezzo}
+For a detailed comparison of Affe with other ML-like languages that support linear types, such as System F° \citep{mazurak_lightweight_2010}, Alms \citep{tov_practical_2011}, Quill \citep{morris_best_2016} and Mezzo \citep{balabonski_design_2016}, as well as the imperative programming languages Rust \citep{weiss_oxide_2021}, Vault \citep{deline_enforcing_2001} and Plaid \citep{garcia_foundations_2014}, we refer to \citep{radanne_kindly_2020}.
 
-\subsubsection{Rust}
+\paragraph{Linear Daphny} \citep{li_linear_2022} is an imperative language with invariably unique types and support for an SMT backend \citep{barrett_satisfiability_2018} that is leveraged to reason about general program properties and aliasing when the linear type system cannot provide the required guarantees. 
 
-\subsubsection{Linear Daphny}
+It supports a traditional borrowing mechanism in the style of observer types \cite{goos_observers_1992} where observation propagates outwards, as well as arbitrarily mixing unique and shared types, the latter of which is ensured to be safe by delegating an aliasing proof obligation to the SMT backend.
+
+Since Lean is also a general proof language, we consider the approach of Linear Daphny very relevant to Lean as well. In order to implement something similar for Lean, uniqueness types would have to be made compatible with Lean's dependent type theory and we would have to embed a model of Lean that allows reasoning about the aliasing of Lean values within Lean itself. \cite{niu_cost-aware_2021} may provide some guidance for augmenting dependently typed languages with cost functions.
