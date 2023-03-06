@@ -10,7 +10,7 @@ We have not covered the topic of type inference at all so far, but some amount o
 \end{itemize}
 Fortunately, in all of these cases, we have access to a lot of surrounding context to determine what the respective uniqueness attributes for an auxiliary function should be.
 
-Nonetheless, it would be nice to have some amount of type inference for the uniqueness attributes of user-written functions as well. Generally, we want parameters that can be borrowed in the sense of \cref{sec:borrowing} to be shared. On the other hand, for parameters that escape, there is no principal type: Depending on whether callers have a unique or shared object at hand, they would want the parameter type to match the given attribute that they have available.
+Nonetheless, it would be nice to have some amount of type inference for the uniqueness attributes of user-written functions as well. Generally, we want parameters that can be borrowed in the sense of \cref{sec:borrowing} to be shared. On the other hand, for parameters that escape, there is no principal type: Depending on whether callers have a unique or shared value at hand, they would want the parameter type to match the given attribute that they have available.
 
 Hence, without polymorphism, one possible approach would be to infer the strongest possible type for a given function and then automatically create auxiliary functions that represent possible weakenings of this strongest possible type, the most obvious weakening being a function where all parameters are shared and the return type is shared as well.
 
@@ -43,7 +43,7 @@ class LawfulCopyable (α) extends Copyable α where
   law : copy = (fun x => (x, x))
 \end{code}
 
-As discussed in \cref{sec:hof}, we believe that the approach that deleverages the uniqueness of objects in a function closure is the most viable, though it requires a change to the runtime in that higher-order functions need to store two function pointers as opposed to just one. Additionally, several other components in \cref{sec:theory} must be adjusted as well, as subtyping must now account for co- and contravariant type parameters and propagation must be capable of propagating through higher-order functions. Similarly, borrowing most be adjusted with unique functions in mind.
+As discussed in \cref{sec:hof}, we believe that the approach that deleverages the uniqueness of values in a function closure is the most viable, though it requires a change to the runtime in that higher-order functions need to store two function pointers as opposed to just one. Additionally, several other components in \cref{sec:theory} must be adjusted as well, as subtyping must now account for co- and contravariant type parameters and propagation must be capable of propagating through higher-order functions. Similarly, borrowing most be adjusted with unique functions in mind.
 
 \section{Polymorphism}
 Another topic we have not touched on at all is attribute polymorphism. Part of the reason for this is that polymorphism results in somewhat unintuitive behaviour if the coercion between unique and shared values is implicit, as in our system in \cref{sec:theory}, since polymorphic functions may both silently downcast a shared value and then propagate the sharedness through the rest of the code. In this case, using different function names would unveil the mistake early on.
