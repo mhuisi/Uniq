@@ -8,7 +8,7 @@ We have not covered the topic of type inference at all so far, but some amount o
 	\item As argued in \cref{sec:ir}, functions that act as join points may get replaced by dedicated join point instructions that callers can directly jump to.
 	\item If a function does not use all of its parameters, then an auxiliary function using only live parameters is created. Note that this may occur often because of LCNF's monomorphization step, where type parameters and other instances of dependent types are erased.
 \end{itemize}
-Fortunately, in all of these cases, we have access to a lot of surrounding context to determine what the respective uniqueness attributes for an auxiliary function should be.
+Fortunately, in all of these cases, we have access to plenty of surrounding context to determine what the respective uniqueness attributes for an auxiliary function should be.
 
 Nonetheless, it would be nice to have some amount of type inference for the uniqueness attributes of user-written functions as well. Generally, we want parameters that can be borrowed in the sense of \cref{sec:borrowing} to be shared. On the other hand, for parameters that escape, there is no principal type: Depending on whether callers have a unique or shared value at hand, they would want the parameter type to match the given attribute that they have available.
 
@@ -25,7 +25,7 @@ In \cref{sec:implementation}, we implement a type checker for our type theory an
 	\item The functions $\delta_{q_e}$ from \cref{sec:escapeanalysis} and $\gamma_{*_e}$ from \cref{sec:borrowing} need to be provided using a custom annotation in Lean 4's annotation mechanism, where declarations, including stubs for external functions and types, can be provided with auxiliary data by users.
 	\item Lean's LCNF must be translated to our model IR and our model type system while preserving information about the mapping.
 	\item Our type checker must be adjusted to produce reasonable error codes. As of now, it only yields a boolean indicating whether a given environment type-checks. Then, if there is a uniqueness type error, using the aforementioned mapping, the error for our model IR must be translated to a corresponding LCNF error.
-	\item In addition to checking whether a given environment type-checks, our type checker must accumulate information about the scope in which a variable is unique. After translating this information back to LCNF, it can be used in subsequent optimizations, for example eliminating the reference count check described in \cref{sec:beans}.
+	\item In addition to checking whether a given environment type-checks, our type checker should accumulate information about the scope in which a variable is unique. After translating this information back to LCNF, it can be used in subsequent optimizations, for example eliminating the reference count check described in \cref{sec:beans}.
 \end{enumerate}
 
 \section{Higher-Order Functions}
@@ -53,9 +53,9 @@ However, if the coercion is made explicit, then mistakes would always be spotted
 What follows are some brief and incomplete thoughts on what would be required to make polymorphism work:
 \begin{itemize}
 	\item In order to be substitutable for both a unique and a shared attribute, variables that are polymorphic in their attribute can only be passed to polymorphic parameters, but must be used uniquely.
-	\item Variables polymorphic in their attribute can be updated destructively.
-	\item Borrowed parameters should always be shared, not polymorphic, since both linear and unique values can be passed to the parameter, but it is still allowed to share the parameter within the function body, as long as it does not escape.
-	\item There needs to be a mechanism to connect the uniqueness of two attribute variables and state ``this component of the return type can be unique if this parameter is unique'', similar to Clean's $\leq$ operator or the boolean connectives discussed by \cite{vries_making_2009}.
+	\item Variables polymorphic in their attribute cannot be updated destructively.
+	\item Borrowed parameters should always be shared, not polymorphic, since both shared and unique values can be passed to the parameter, while it is still allowed to share the parameter within the function body as long as it does not escape.
+	\item There needs to be a mechanism to connect the uniqueness of two attribute variables and state ``this component of the return type can be unique if this parameter is unique'', similar to Clean's $\leq$ operator or the boolean connectives discussed by \cite{de_vries_making_2009}.
 	\item Uniqueness attributes in ADTs should propagate the attribute variable of the outer value when the respective field is accessed.
 	\item Ideally, the fact that shared types cannot contain unique ones should not have to be explicitly reflected everywhere in the type annotation of a function; it should be assumed implicitly, or at least the annotational clutter that is present in de Vries' implementations of polymorphism should be reduced somehow.
 \end{itemize}

@@ -1,4 +1,4 @@
-\documentclass[parskip=full,12pt,a4paper,twoside,headings=openright, fleqn]{scrreprt}
+\documentclass[parskip=no,12pt,a4paper,twoside,headings=openright, fleqn]{scrreprt}
 % switch to scrbook if you want roman page numbers for the front matter
 % however scrbook has no 'abstract' environment!
 % if your thesis is in english, use "parskip=no" instead
@@ -20,10 +20,23 @@
 \usepackage{bbold}
 \usepackage{framed}
 \usepackage{placeins}
+\usepackage{float}
+
+\usepackage{lineno}
+\linenumbers
 
 \makeatletter
 \setlength{\@fptop}{0pt}
 \setlength{\@fpbot}{0pt plus 1fil}
+\makeatother
+
+\makeatletter
+\providecommand{\leftsquigarrow}{%
+	\mathrel{\mathpalette\reflect@squig\relax}%
+}
+\newcommand{\reflect@squig}[2]{%
+	\reflectbox{$\m@th#1\rightsquigarrow$}%
+}
 \makeatother
 
 \def\lstlanguagefiles{lstlean.tex}
@@ -101,7 +114,7 @@ Dinge auf Englisch
 \pagestyle{empty}
 
   \vspace{20mm}
-  Hiermit erkläre ich, \theauthor, dass ich die vorliegende Bachelorarbeit selbst\-ständig
+  Hiermit erkläre ich, \theauthor, dass ich die vorliegende Masterarbeit selbst\-ständig
 verfasst habe und keine anderen als die angegebenen Quellen und Hilfsmittel
 benutzt habe, die wörtlich oder inhaltlich übernommenen Stellen als solche kenntlich gemacht und
 die Satzung des KIT zur Sicherung guter wissenschaftlicher Praxis beachtet habe.

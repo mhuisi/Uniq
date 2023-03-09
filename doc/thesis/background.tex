@@ -10,23 +10,22 @@ Unfortunately, evaluating the term language using a separate interpreter would s
 To improve on this, Lean 4 now implements its own self-hosted compiler toolchain for both a C backend and a work-in-progress LLVM backend, including its own IR, optimization pipeline and custom garbage collection algorithm. Being almost entirely self-hosted, Lean 4 is now also well capable of being used as a general purpose programming language.
 
 \subsubsection{Examples}
-Let us now consider some basic examples of Lean 4 code to get a feeling for the language. It should be noted that all of the following can be expressed more succinctly, but that we have chosen not to do so in order to make these snippets easier to grasp for readers not familiar with Lean.
-
+Let us now consider some basic examples of Lean 4 code to get a feeling for the language. It should be noted that all of the following can be expressed more succinctly, but that we have chosen not to do so in order to make these snippets easier to grasp for readers not familiar with Lean.\\
 \begin{code}
 def List.map (f : α → β) : List α → List β
   | []      => []
   | x :: xs => f x :: map f xs
 \end{code}
-\lstinline|List.map| is implemented by recursion on the second argument. The empty list again yields the empty list. If the list is a cons cell, we map the head of the cons cell using \lstinline|f|, recurse on the tail and then build a new cons cell from the results of both.
 
+\lstinline|List.map| is implemented by recursion on the second argument. The empty list again yields the empty list. If the list is a cons cell, we map the head of the cons cell using \lstinline|f|, recurse on the tail and then build a new cons cell from the results of both.\\
 \begin{code}
 def List.get? : List α → Nat → Option α
   | [],      _     => Option.none
   | x :: _,  0     => Option.some x
   | _ :: xs, n + 1 => List.get? xs n
 \end{code}
-\lstinline|List.get?| is implemented by recursion both on the provided list and the index provided in the second argument. It yields an \lstinline|Option α|, i.e. either \lstinline|Option.some α| if the index is in the list, or \lstinline|Option.none| otherwise.
 
+\lstinline|List.get?| is implemented by recursion both on the provided list and the index provided in the second argument. It yields an \lstinline|Option α|, i.e. either \lstinline|Option.some α| if the index is in the list, or \lstinline|Option.none| otherwise.\\
 \begin{code}
 def Array.groupBy (p : α → α → Ordering) (xs : Array α)
   : RBMap α (Array α) p := Id.run do
@@ -36,6 +35,7 @@ def Array.groupBy (p : α → α → Ordering) (xs : Array α)
     result := RBMap.insert result x (Array.push group x)
   return result
 \end{code}
+
 \lstinline|Array.groupBy| is implemented using an imperative domain-specific language (DSL) based on do-notation \citep{ullrich_beyond_2022}. It takes a relation \lstinline|p| that yields an \lstinline|Ordering|, i.e. whether the first argument is greater than, smaller than or equal to the second argument, as well as the array to group the elements of. It returns a red-black map ordered by \lstinline|p|, where the keys are arbitrary representatives of the group and the values denote groups \lstinline|Array α| of \lstinline|p|-equivalent values.
 
 In order to use do-notation, we need to run the code in a monad. Since we do not intend to accumulate any effects and only use do-notation for its imperative domain-specific language (DSL), we use the \lstinline|Id| monad, entering it using \lstinline|Id.run|. First, we initialize a mutable but empty red-black map, denoting our result. Then, we iterate over every element \lstinline|x| in the provided array and look for a group in the current result that is \lstinline|p|-equivalent to \lstinline|x|. If we find such a group, we store it in \lstinline|group|. Otherwise, we allocate a new group for elements \lstinline|p|-equivalent to \lstinline|x| using the call to \lstinline|Option.getD|, which returns the first element if it was equal to \lstinline|some x| and otherwise returns the second element if it was equal to \lstinline|none|. Then, we add \lstinline|x| itself to the group and re-insert it into our mutable \lstinline|result| map. At the end, we return the accumulated \lstinline|result| map.
@@ -68,7 +68,7 @@ There are several mechanisms required to make this work:
 	\item Support for inductive type families, which are essentially algebraic data types where each constructor creates a term in a type that can be parametrized by other terms. For example, we might declare a type $\lambda \alpha : \mathrm{Type}.\ \lambda n : \mathbb{N}.\ \mathrm{Vec}\ \alpha\ n$ for lists over a type $\alpha$ of size $n$ with constructors $\mathrm{nil} : \mathrm{Vec}\ \alpha\ 0$ and $\mathrm{cons} : \forall n : \mathbb{N}.\ \alpha \to \mathrm{Vec}\ \alpha\ n \to \mathrm{Vec}\ \alpha\ (n+1)$. Each inductive type family also yields a recursion principle that allows for pattern matching and using recursion on the value of a type to compute an accumulate value.
 \end{enumerate}
 
-In addition to $\forall x : \tau_1.\ \tau_2(x)$, dependent type theories also always support dependent product types $(x : \tau_1) \times \tau_2(x)$ and dependent sum types $(x : \tau_1) + \tau_2(x)$.
+In addition to $\forall x : \tau_1.\ \tau_2(x)$, dependent type theories also always support dependent sigma types $(x : \tau_1) \times \tau_2(x)$ and sum types $\tau_1 + \tau_2$.
 
 \subsubsection{Propositions}
 For convenience, Lean's type theory also supports a separate type universe of propositions $\mathbb{P}$, the terms of which are types $p : \mathbb{P}$ with proof terms $h : p$ witnessing the truth of the proposition $p$. For example, if $\mathrm{refl} : \forall x.\ x = x$, we have $(\mathrm{refl}\ n) : (n = n) : \mathbb{P}$ and $(\mathrm{refl}\ n) : (n + 1 - 1 = n) : \mathbb{P}$ for $n : \mathbb{N}$, as $n + 1 - 1 \rightsquigarrow n$ by reduction. Meanwhile, there is no term $h : (n = n + 1) : \mathbb{P}$. For less trivial propositions, we use the recursion principles of inductive type families, which become induction principles if the accumulated value is a proposition $p : \mathbb{P}$. 
@@ -88,7 +88,7 @@ For a detailed formal description of Lean's type theory, we refer to \citep{carn
 \subsubsection{Substructural rules}
 Type systems typically guarantee certain functional or extensional properties for a given program using a typing relation $\Gamma \vdash e : \tau$, where $\Gamma$ is a set of type judgements $x : \tau'$. The following \textsc{Exchange}, \textsc{Weaken} and \textsc{Contract} rules are usually assumed implicitly:
 \begin{mathpar}
-	$\inferrule[Exchange]{\Gamma_1, y : \tau_2, \Gamma_2, x : \tau_1, \Gamma_3 \vdash e : \tau}{\Gamma_1, x : \tau_1, \Gamma_2, y : \tau_2, \Gamma_3 \vdash e : \tau}$ \hspace{1.5em}
+	$\inferrule[Exchange]{\Gamma_1, y : \tau_2, x : \tau_1, \Gamma_2 \vdash e : \tau}{\Gamma_1, x : \tau_1, y : \tau_2, \Gamma_2 \vdash e : \tau}$ \hspace{1.5em}
 	$\inferrule[Weaken]{\Gamma \vdash e : \tau}{\Gamma, x : \tau' \vdash e : \tau}$ \hspace{1.5em}
 	$\inferrule[Contract]{\Gamma, x : \tau', x : \tau' \vdash e : \tau}{\Gamma, x : \tau' \vdash e : \tau}$
 \end{mathpar} 
@@ -113,7 +113,7 @@ With \textsc{Dereliction} and \textsc{Promotion}, linear types make a guarantee 
 
 In a type system with \textsc{Dereliction} and \textsc{Promotion}, linearity is unsuited to guarantee the referential uniqueness of a variable, as it may have been duplicated in the past, an issue that is acknowledged by \cite{wadler_is_1991}. For linear type systems where linearity is guaranteed from construction onwards, \cite{chirimar_reference_1996} prove that the linearity of a variable implies the uniqueness of the associated reference.
 
-Future linear type systems \citep{goos_observers_1992}\citep{atkey_syntax_2018}\citep{bernardy_linear_2018}\citep{brady_idris_2021}\citep{choudhury_graded_2021} \citep{li_linear_2022}\citep{spiwack_linearly_2022} always adopt one of these two approaches and either allow for a non-linear to linear coercion, or no coercion at all, thus cementing the idea of ``linearity'' referring to either ``always uniquely referenced'' or ``used linearly from this point onwards''. The latter can be made to act like the former by guaranteeing referential uniqueness through other means, e.g. by making every constructor of a type return a value of linear type, effectively turning referential uniqueness into a library design decision.
+Future linear type systems \citep{goos_observers_1992} \citep{atkey_syntax_2018} \citep{bernardy_linear_2018} \citep{brady_idris_2021} \citep{choudhury_graded_2021} \citep{li_linear_2022} \citep{spiwack_linearly_2022} always adopt one of these two approaches and either allow for a non-linear to linear coercion, or no coercion at all, thus cementing the idea of ``linearity'' referring to either ``always uniquely referenced'' or ``used linearly from this point onwards''. The latter can be made to act like the former by guaranteeing referential uniqueness through other means, e.g. by making every constructor of a certain type return a value of linear type, effectively turning referential uniqueness into a library design decision.
 
 To make the distinction between the two kinds of linear type systems clear, we will henceforth refer to linear type systems without any coercion between linear and non-linear values as ``invariably unique'' and type systems adopting \textsc{Dereliction} and \textsc{Promotion} as ``properly linear'', but still use the term ``linear'' to group the two of them together, as is often done in the literature since Wadler's first papers. See \cref{fig:wadler-properly-linear} for Wadler's properly linear type system and \cref{fig:wadler-invariably-unique} for his invariably unique type system.
 
@@ -123,9 +123,9 @@ One common refinement of linear type theory is to allow the use of \textsc{Weake
 \subsubsection{Applications}
 The various applications of linear type theory include the following:
 \begin{itemize}
-	\item Threading a functional program and enforcing an execution order to replace the use of monads for I/O in functional languages with a linear equivalent \citep{vries_making_2009}\citep{bernardy_linear_2018}\citep{brady_idris_2021}
+	\item Threading a functional program and enforcing an execution order to replace the use of monads for I/O in functional languages with a linear equivalent \citep{de_vries_making_2009} \citep{bernardy_linear_2018} \citep{brady_idris_2021}
 	\item Ensuring resource- and memory-safety so that resources and memory cannot be freed multiple times \citep{weiss_oxide_2021}
-	\item Performing efficient in-place updates and enabling the use of arrays in functional languages \citep{vries_making_2009}\citep{bernardy_linear_2018}
+	\item Performing efficient in-place updates and enabling the use of arrays in functional languages \citep{de_vries_making_2009} \citep{bernardy_linear_2018}
 	\item Specifying usage protocols for types \citep{brady_idris_2021}
 	\item Guiding program synthesis \citep{brady_idris_2021}
 	\item Inverting the computation of functions \citep{matsuda_sparcl_2020}
@@ -147,7 +147,7 @@ The various applications of linear type theory include the following:
 			$\inferrule[$\to$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \to \tau_2 \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash (!\ e_1\ e_2) : \tau_2}$
 		\end{mathpar}
 	\end{framed}
-	\caption{Original linear type system from \citep{wadler_linear_1990} with separate linear and non-linear terms and types. $1$ denotes linear terms, $!$ denotes nonlinear terms. ``nonlinear'' demands that the full type or context consists only of non-linear $\to$-types.}
+	\caption{Original linear type system from \citep{wadler_linear_1990} with separate linear and non-linear terms and types. $1$ denotes linear terms, $!$ denotes non-linear terms. ``nonlinear'' demands that the full type or context consists only of non-linear $\to$-types.}
 	\label{fig:wadler-original}
 \end{figure}
 \begin{figure}[p]
@@ -175,7 +175,7 @@ The various applications of linear type theory include the following:
 			$\inferrule[$\oplus$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \oplus \tau_2 \\ \Gamma_2, x : \tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y : \tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \mathrm{case}\ e_1\ \mathrm{of}\ \mathrm{left}\ x \Rightarrow e_2;\ \mathrm{right}\ y \Rightarrow e_3 : \tau_3}$
 		\end{mathpar}
 	\end{framed}
-	\caption{Properly linear type system from \citep{wadler_is_1991}.}
+	\caption{Properly linear type system from \citep{wadler_is_1991} with support for multiplicative product types ($\otimes$) and multiplicative sum types ($\oplus$).}
 	\label{fig:wadler-properly-linear}
 \end{figure}
 \begin{figure}[p]
@@ -242,38 +242,88 @@ Erased terms or types can only be used in other erased terms or types, and types
 \subsubsection{Quantities instead of types}
 The implementations of QTT by \cite{lindley_i_2016} and \cite{atkey_syntax_2018} use an additional trick to make the description of the type theory more compact. 
 
-While linear type theories usually denote linearity on the type $\tau$, quantitative type theory instead denotes it on the binder $:$ in $x : \tau$, which leads to $0$, $1$ and $\omega$ not simply being kinds of types, but ``quantities'' on the binders $x :_q \tau$ for $q \in \{0, 1, \omega\}$ in the context. There are only linear types, and the quantity on the binder determines the substructural restrictions on the variable. 
+While linear type theories usually denote linearity on the type $\tau$, quantitative type theory instead denotes it on the binder ``$:$'' in $x : \tau$, which leads to $0$, $1$ and $\omega$ not simply being kinds of types, but ``quantities'' on the binders $x :_q \tau$ for $q \in \{0, 1, \omega\}$ in the context. There are only linear types, and the quantity on the binder determines the substructural restrictions on the variable. 
 
 The typing judgement $\Gamma \vdash e :_\sigma \tau$ is quantified as well to track whether $e$ is being checked in a computationally relevant or irrelevant context, and $\sigma$ is restricted to $\{0, 1\}$ to ensure admissibility of substitution \citep{atkey_syntax_2018}. 
 
-The types described in \cref{sec:ltt} now become the following dependent types:
-\begin{itemize}
-	\item $((x :_1 \tau_1) \to \tau_2) \triangleeq (\tau_1 \multimap \tau_2)$
-	\item $((x :_1 \tau_1) \otimes (y :_1 \tau_2) \otimes \mathbb{1}) \triangleeq (\tau_1 \otimes \tau_2)$
-	\item $((x :_1 \tau_1) \oplus (y :_1 \tau_2) \oplus \mathbb{0}) \triangleeq (\tau_1 \oplus \tau_2)$
-\end{itemize}
+With these tools, $\tau_1 \multimap \tau_2$ is encoded as $(x :_1 \tau_1) \to \tau_2$ and $\tau_1 \otimes \tau_2$ from \cref{fig:wadler-properly-linear} in \cref{sec:ltt} is encoded as $(x :_1 \tau_1) \otimes (y :_1 \tau_2) \otimes \mathbb{1}$. With a dependent type-level if-then-else construct, we can also encode $\tau_1 \oplus \tau_2 := (b :_1 \mathbb{B}) \otimes (\mathrm{if}\ b\ \mathrm{then}\ \tau_1\ \mathrm{else}\ \tau_2)$ \citep{grenrus_dependent_2020}.
 
 Both \cite{lindley_i_2016} and \cite{atkey_syntax_2018} specify a generic framework for adding additional quantities to the type theory, allowing, for example, the additional introduction of a $\leq\hspace{-0.3em}1$ quantity representing affinity, or more accurate accounting of uses $n > 1$.
+
+The typing rules for quantitative type theory as described by \cite{svoboda_additive_2021} and inspired by \cite{atkey_syntax_2018} can be found in \cref{fig:qtt}.
 
 \subsubsection{Demand-based consumption}
 Finally, note that by denoting the linear quantity on the binder in $(x :_1 \tau_1) \to \tau_2$, we cannot specify a quantity for $\tau_2$ any more, as we could in linear type theory by using either a linear or non-linear type for the return type. Instead, when checking an application $f\ (g\ e) :_1 \tau_3$ for $f :_1 (x :_q \tau_2) \to \tau_3$, $g :_1 (x :_1 \tau_1) \to \tau_2$ and $e :_1 \tau_1$, we demand $q$ instances of the resources $\Gamma$ required to check $g\ e :_1 \tau_2$. 
 
 In other words, if we need $q$ instances of a return value that requires $\Gamma$ resources to produce, we instead demand $q \cdot \Gamma$ resources in our context, pretending that we applied the function $q$ times to obtain $q$ instances of the return value. This way, quantities need not be specified on return values, and the resources for the arguments are consumed based on the required amount of the return value.
 
-This trick is not inherent to quantitative types and can be applied to linear type systems of any kind by taking $f : \tau_1 \multimap \tau_2$ to mean ``$f$ consumes one of $\tau_1$ for every instance of $\tau_2$ that is required'', e.g. as in Linear Haskell \citep{bernardy_linear_2018} or in \citep{ghica_bounded_2014}. 
+This trick is not inherent to quantitative types and can be applied to linear type systems of any kind by taking $f : \tau_1 \multimap \tau_2$ to mean ``$f$ consumes one of $\tau_1$ for every instance of $\tau_2$ that is required'', e.g.\ as in Linear Haskell \citep{bernardy_linear_2018} or in \cite{ghica_bounded_2014}. 
 
 However, it is not entirely for free: If one wishes to both use a linear or quantitative type system with \textsc{Dereliction} and \textsc{Promotion}, as well as guarantee referential uniqueness, then the lack of an annotation on the return type of functions means that we cannot simply annotate every constructor to return a linear type in order to ensure referential uniqueness, as described in \cref{sec:ltt}. 
-Instead, both quantitative and linear type theories that use this trick and want to guarantee referential uniqueness define constructors in a continuation passing manner; e.g. $\mathrm{mkArray} : \mathbb{N} \multimap \alpha \multimap \mathrm{Array}\ \alpha$ becomes $\mathrm{mkArray} : \mathbb{N} \multimap \alpha \multimap (\mathrm{Array}\ \alpha \multimap\ !\tau) \multimap\ !\tau$.
+Instead, both quantitative and linear type theories that use this trick and want to guarantee referential uniqueness define constructors in a continuation passing manner; e.g.\ $\mathrm{mkArray} : \mathbb{N} \multimap \alpha \multimap \mathrm{Array}\ \alpha$ becomes $\mathrm{mkArray} : \mathbb{N} \multimap \alpha \multimap (\mathrm{Array}\ \alpha \multimap\ !\tau) \multimap\ !\tau$ \citep{bernardy_linear_2018}.
 
 \subsubsection{Applications}
 Quantitative type theory combines the benefits of linear type theory and dependent type theory, leading to far greater capabilities when specifying protocols for types \citep{brady_idris_2021}. The introduction of an erasure quantity to combine the two type theories also allows for finer-grained specification of terms that are not computationally relevant but would otherwise be expensive to compute \citep{brady_idris_2021}.
 
+\begin{figure}[H]
+	\begin{mathpar}
+		\boxed{\Gamma \vdash} \hspace{1.5em}
+		$\inferrule[Empty]{ }{\emptyset \vdash}$ \hspace{1.5em}
+		$\inferrule[Extend]{\Gamma \vdash \\ 0\Gamma \vdash S :_0 \mathcal{U}}{\Gamma, x :_q S \vdash}$
+	\end{mathpar}\\
+	\begin{mathpar}
+		\boxed{\Gamma \vdash M :_\sigma S}
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[Var]{0\Gamma_1, x :_\sigma S, 0\Gamma_2 \vdash}{0\Gamma_1, x :_\sigma S, 0\Gamma_2 \vdash x :_\sigma S}$ \hspace{1.5em}
+		$\inferrule[Universe]{0\Gamma \vdash}{0\Gamma \vdash \mathcal{U} :_0 \mathcal{U}}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[Conversion]{\Gamma \vdash M :_\sigma S \\ 0\Gamma \vdash S :_0 \mathcal{U} \\ 0\Gamma \vdash T :_0 \mathcal{U} \\ S \rightsquigarrow U \leftsquigarrow T}{\Gamma \vdash M :_\sigma T}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\to$-Formation]{0\Gamma \vdash S :_0 \mathcal{U} \\ 0\Gamma, x :_0 S \vdash T :_0 \mathcal{U}}{0\Gamma \vdash (x :_q S) \to T :_0 \mathcal{U}}$ \hspace{1.5em}
+		$\inferrule[$\to$-Intro]{\Gamma, x :_{\sigma q} S \vdash M :_\sigma T}{\Gamma \vdash (\lambda x :_q S.\ M) :_\sigma (x :_q S) \to T}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\to$-Elim$_0$]{\Gamma \vdash M :_\sigma (x :_q S) \to T \\ \sigma q = 0 \\ 0\Gamma \vdash N :_0 S}{\Gamma \vdash M\ N :_\sigma T}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\to$-Elim$_1$]{\Gamma_1 \vdash M :_\sigma (x :_q S) \to T \\ \Gamma_2 \vdash N :_1 S}{\Gamma_1 + \sigma q \Gamma_2 \vdash M\ N :_\sigma T}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\otimes$-Formation]{0\Gamma \vdash S :_0 \mathcal{U} \\ 0\Gamma, x :_0 S \vdash T :_0 \mathcal{U}}{0\Gamma \vdash (x :_q S) \otimes T :_0 \mathcal{U}}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\otimes$-Intro$_0$]{\sigma q = 0 \\ 0\Gamma \vdash M :_0 S \\ \Gamma \vdash N :_\sigma T[M/x]}{\Gamma \vdash (M, N) :_\sigma (x :_q S) \otimes T}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\otimes$-Intro$_1$]{\Gamma_1 \vdash M :_1 S \\ \Gamma_2 \vdash N :_\sigma T[M/x]}{\sigma q \Gamma_1 + \Gamma_2 \vdash (M, N) :_\sigma (x :_q S) \otimes T}$
+	\end{mathpar}
+\end{figure}
+\begin{figure}[t]
+	\begin{mathpar}
+		$\inferrule[$\otimes$-Elim]{\Gamma_1 \vdash M :_\sigma (x :_q S) \otimes T \\ 0\Gamma_1, z :_0 (x :_q S) \otimes T \vdash U :_0 \mathcal{U} \\ \Gamma_2, x :_{\sigma q} S, y :_\sigma T \vdash N :_\sigma U[(x, y)/z]}{\Gamma_1 + \Gamma_2 \vdash \mathrm{let}_{(x\,:_q\,S) \otimes T}\ z@(x, y) = M\ \mathrm{in}_U\ N :_\sigma U[M/z]}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\mathbb{1}$-Formation]{0\Gamma \vdash}{0\Gamma \vdash \mathbb{1} :_0 \mathcal{U}}$ \hspace{1.5em}
+		$\inferrule[$\mathbb{1}$-Intro]{0\Gamma \vdash}{0\Gamma \vdash () :_\sigma \mathbb{1}}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\mathbb{1}$-Elim]{\Gamma_1 \vdash M :_\sigma \mathbb{1} \\ 0\Gamma_1, x :_0 \mathbb{1} \vdash S :_0 \mathcal{U} \\ \Gamma_2 \vdash N :_\sigma S[()/x]}{\Gamma_1 + \Gamma_2 \vdash \mathrm{let}_\mathbb{1}\ x@() = M\ \mathrm{in}_S\ N :_\sigma S[M/x]}$
+	\end{mathpar}
+	\caption{Quantitative type theory as described by \cite{svoboda_additive_2021} and inspired by \cite{atkey_syntax_2018}. Features a single type universe $\mathcal{U}$. $\rightsquigarrow$ denotes reduction. Quantities $q \in \{0, 1, \omega\}$ satisfy $p + q = q + p$, $0 + q = q$, $\omega + q = \omega$, $1 + 1 = \omega$, $p q = q p$, $0q = 0$, $1q = q$ and $\omega \omega = \omega$.}
+	\label{fig:qtt}
+\end{figure}
+
+\FloatBarrier
+
 \section{Uniqueness Type Theory}\label{sec:uniqueness}
 \cite{smetsers_guaranteeing_1994} and \cite{barendsen_uniqueness_1996} introduce a type system for the Clean programming language with the goal of guaranteeing referential uniqueness to enable many of the applications described in \cref{sec:ltt}. The core idea is to use the linear and non-linear types of linear type systems, but instead of keeping them entirely separate or allowing for a coercion from non-linear types to linear types, the coercion is inverted, allowing for the conversion of linear types to non-linear types. 
 
-The motivation for this idea is that both properly linear type systems that guarantee referential uniqueness through careful library design and invariably unique type systems are too restrictive: For some use-cases of referential uniqueness, like destructive updates, it is perfectly acceptable to discard the uniqueness guarantee at some point, because the lack of a static uniqueness guarantee can still be mitigated through other means, as for example in \cref{sec:beans}. 
+The motivation for this idea is that both properly linear type systems that guarantee referential uniqueness through careful library design and invariably unique type systems are too restrictive: For some use-cases of referential uniqueness, like destructive updates, it is perfectly acceptable to discard the uniqueness guarantee at some point, because the lack of a static uniqueness guarantee can still be mitigated through other means, as for example in \cref{sec:beans}, or because it is simply not needed for the remainder of the program. 
 
-Respectively, as long as there is a coercion from linear types to non-linear types, uniqueness type systems refer to linear types as ``unique'' (tagged with $*$ in the type system) and non-linear types as ``non-unique'' or ``shared'' (tagged with $!$ in the type system). The temporal guarantee becomes inverted: While linear types ensure that a variable is always used exactly once in the future, uniqueness types ensure that a variable has always been used exactly once in the past \citep{vries_making_2009}\citep{sergey_linearity_2022}.
+As long as there is a coercion from linear types to non-linear types, uniqueness type systems refer to linear types as ``unique'' (tagged with $*$ in the type system) and non-linear types as ``non-unique'' or ``shared'' (tagged with $!$ in the type system). The temporal guarantee becomes inverted: While linear types ensure that a variable is always used exactly once in the future, uniqueness types ensure that a variable has always been used exactly once in the past \citep{de_vries_making_2009}\citep{sergey_linearity_2022}.
 
 \subsubsection{Uniqueness types by library design}
 Implementations like the one in Linear Haskell \citep{bernardy_linear_2018} acknowledge the over-restrictiveness of linear type theory and make the coercion from linear to non-linear types a part of their library design as well: If MArray represents an array that is always guaranteed to be linear because its constructor has type $\mathrm{newMArray} :\ !\mathbb{N} \multimap (\mathrm{MArray}\ \alpha \multimap\ !\beta) \multimap\ !\beta$, then the coercion is $\mathrm{freeze} : \mathrm{MArray}\ \alpha \multimap\ !(\mathrm{Array}\ \alpha)$. 
@@ -281,22 +331,22 @@ Implementations like the one in Linear Haskell \citep{bernardy_linear_2018} ackn
 Note that since this coercion requires switching out the entire type of the array, coercing nested arrays in constant time becomes problematic. A recent apporach by \cite{spiwack_linearly_2022} attempts to mitigate this issue by introducing a system of linear capabilities on top of the linear type system, so that Read and Read+Write capabilities are managed and passed around implicitly, freeze removes the Write capability from an MArray and gaining linear read access to a nested array within requires the Write capability for the outer array. We will go into some more detail on this approach in \cref{sec:borrowingbackground}.
 
 \subsubsection{Lambda calculus and uniqueness types}
-Unfortunately, the original type system of Clean was formulated in terms of graph rewriting and not lambda calculus, which meant that advances by the rest of the type theory research community were difficult to transfer over to uniqueness typing, a deficit that was only resolved much later by \cite{vries_making_2009}. In his thesis, de Vries first provides a uniqueness type system based on lambda calculus resembling that of Clean and then iteratively refines it with the goal of introducing higher-rank polymorphism \citep{peyton_jones_practical_2007}.
+Unfortunately, the original type system of Clean was formulated in terms of graph rewriting and not lambda calculus, which meant that advances by the rest of the type theory research community were difficult to transfer over to uniqueness typing, a deficit that was only resolved much later by \cite{de_vries_making_2009}. In his thesis, de Vries first provides a uniqueness type system based on lambda calculus resembling that of Clean and then iteratively refines it with the goal of introducing higher-rank polymorphism \citep{peyton_jones_practical_2007}.
 
 \subsubsection{Challenges}
 In uniqueness type systems, there are a number of challenges that do not appear in linear type systems. 
 
-\paragraph{Composable types} The first is that types are inherently less composable. In properly linear type theory, non-linear and linear types can be mixed freely, as long as the provided resources are present to create them. For example, $!(\tau_1 \otimes \tau_2)$ is just a non-linear product, whereas $(!\tau_1) \otimes \tau_2$ is a linear product where the first type is non-linear. 
+\paragraph{Unique types within shared types} The first is that types are inherently less composable. In properly linear type theory, non-linear and linear types can be mixed freely, as long as the provided resources are present to create them. For example, $!(\tau_1 \otimes \tau_2)$ is just a non-linear product, whereas $(!\tau_1) \otimes \tau_2$ is a linear product where the first type is non-linear. 
 
-If, on the other hand, the type system is invariably unique and $\tau_1$ is linear, then the former example $!(\tau_1 \otimes \tau_2)$ is malformed, as deconstructing the product and obtaining the linear $\tau_1$ will not actually yield us a guarantee that the corresponding value has not been shared in the past, as e.g. the product could have been shared. Resolving this is a challenge in uniqueness type systems as well.
+If, on the other hand, the type system is invariably unique and $\tau_1$ is linear, then the former example $!(\tau_1 \otimes \tau_2)$ is malformed, as deconstructing the product and obtaining the linear $\tau_1$ will not actually yield us a guarantee that the corresponding value has not been shared in the past, as e.g. the product could have been shared. 
 
-\paragraph{Unique types withinin shared types} The second is the question of how to enforce that non-linear or non-unique types cannot contain linear or unique types. In invariably unique type systems, e.g. Wadler's steadfast linear types from \cite{wadler_is_1991}, the answer is usually to enforce this invariant during the construction of a value. For example, constructing $!(\tau_1 \otimes \tau_2)$ becomes possible only when both $\tau_1$ and $\tau_2$ are non-linear.
+Hence, we must enforce that non-linear or non-unique types cannot contain linear or unique types. In invariably unique type systems, e.g. Wadler's steadfast linear types from \cite{wadler_is_1991}, the answer is usually to enforce this invariant during the construction of a value. For example, constructing $!(\tau_1 \otimes \tau_2)$ becomes possible only when both $\tau_1$ and $\tau_2$ are non-linear.
 
 With uniqueness types, the situation is unfortunately more complicated: If it is possible to discard the uniqueness of a value, then the invariant that non-unique types cannot contain unique types does not just need to be enforced at construction, but after discarding the uniqueness of a value as well. 
 
 Clean in particular resolves the issue by enforcing the invariant both at construction and at deconstruction; if the type of a value is malformed, then deconstructing it is not allowed. Note that an alternative solution would be that deconstructing it is allowed, but the contained values will again be non-unique.
 
-\paragraph{Higher-order functions} Third, both in uniqueness type systems and invariably unique type systems, there is a question of what to do about function closures. When forming $\lambda x.\ e :\ !(\tau_1 \multimap \tau_2)$, the closure of the function is data that is dragged around by the resulting function. As such, the same considerations as for types $\tau_1 \otimes \tau_2$ apply, namely that values of non-linear type (the function) cannot be allowed to contain values of linear types (anything implicitly contained in the function closure), lest we could duplicate the function value and with that its closure. 
+\paragraph{Higher-order functions} Second, both in uniqueness type systems and invariably unique type systems, there is a question of what to do about function closures. When forming $\lambda x.\ e :\ !(\tau_1 \multimap \tau_2)$, the closure of the function is data that is dragged around by the resulting function. As such, the same considerations as for types $\tau_1 \otimes \tau_2$ apply, namely that values of non-linear type (the function) cannot be allowed to contain values of linear types (anything implicitly contained in the function closure), lest we could duplicate the function value and with that its closure. 
 
 In an invariably unique type system without \textsc{Promotion} and \textsc{Dereliction}, this is somewhat easy to resolve: For example, Wadler's steadfast types require that every type in the closure of a function must be non-linear when forming the abstraction.
 
