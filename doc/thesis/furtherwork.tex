@@ -33,8 +33,7 @@ We have discussed the topic of higher-order functions in uniqueness type systems
 
 This situation is far from optimal because Lean code uses higher-order functions for type classes, monadic code, as well as tricks that guarantee uniqueness for unique values within other unique values, like the \lstinline|update| trick discussed in \cref{sec:beans}. 
 
-If we could use uniqueness annotations in type classes, defining the following classes that provide extra control over uniqueness would be possible:
-
+If we could use uniqueness annotations in type classes, defining the following classes that provide extra control over uniqueness would be possible:\\
 \begin{code}
 class Copyable (α) where
   copy : *α → *(*α × *α)

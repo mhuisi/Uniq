@@ -130,9 +130,11 @@ The various applications of linear type theory include the following:
 	\item Guiding program synthesis \citep{brady_idris_2021}
 	\item Inverting the computation of functions \citep{matsuda_sparcl_2020}
 \end{itemize}
-
-\begin{figure}[p]
-	\begin{framed}
+\clearpage
+\topskip0pt
+\vspace*{\fill}
+\begin{mdframed}
+\begin{figure}[H]
 		\begin{mathpar}
 			$\inferrule[Var]{ }{x : \tau \vdash x : \tau}$ \hspace{1.5em}
 			$\inferrule[$\multimap$-Intro]{\Gamma, x : \tau_1 \vdash e : \tau_2}{\Gamma \vdash (1\ \lambda x : \tau_1.\ e) : \tau_1 \multimap \tau_2}$ \hspace{1.5em}
@@ -146,12 +148,13 @@ The various applications of linear type theory include the following:
 			$\inferrule[$\to$-Intro]{\Gamma, x : \tau_1 \vdash e : \tau_2 \\ \Gamma\ \mathrm{nonlinear}}{\Gamma \vdash (!\ \lambda x : \tau_1.\ e) : \tau_1 \to \tau_2}$ \hspace{1.5em}
 			$\inferrule[$\to$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \to \tau_2 \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash (!\ e_1\ e_2) : \tau_2}$
 		\end{mathpar}
-	\end{framed}
 	\caption{Original linear type system from \citep{wadler_linear_1990} with separate linear and non-linear terms and types. $1$ denotes linear terms, $!$ denotes non-linear terms. ``nonlinear'' demands that the full type or context consists only of non-linear $\to$-types.}
 	\label{fig:wadler-original}
 \end{figure}
-\begin{figure}[p]
-	\begin{framed}
+\end{mdframed}
+\vspace*{\fill}
+\begin{mdframed}
+\begin{figure}[H]
 		\begin{mathpar}
 			$\inferrule[Weaken]{\Gamma \vdash e : \tau}{\Gamma, x :\ !\tau' \vdash e : \tau}$ \hspace{1.5em}
 			$\inferrule[Contract]{\Gamma, x :\ !\tau', x :\ !\tau' \vdash e : \tau}{\Gamma, x :\ !\tau' \vdash e : \tau}$ \hspace{1.5em}
@@ -174,12 +177,16 @@ The various applications of linear type theory include the following:
 		\begin{mathpar}
 			$\inferrule[$\oplus$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \oplus \tau_2 \\ \Gamma_2, x : \tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y : \tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \mathrm{case}\ e_1\ \mathrm{of}\ \mathrm{left}\ x \Rightarrow e_2;\ \mathrm{right}\ y \Rightarrow e_3 : \tau_3}$
 		\end{mathpar}
-	\end{framed}
 	\caption{Properly linear type system from \citep{wadler_is_1991} with support for multiplicative product types ($\otimes$) and multiplicative sum types ($\oplus$).}
 	\label{fig:wadler-properly-linear}
 \end{figure}
-\begin{figure}[p]
-	\begin{framed}
+\end{mdframed}
+\vspace*{\fill}
+\clearpage
+\topskip0pt
+\vspace*{\fill}
+\begin{mdframed}
+\begin{figure}[H]
 		\begin{mathpar}
 			$\inferrule[Weaken]{\Gamma \vdash e : \tau}{\Gamma, x :\ !\tau' \vdash e : \tau}$ \hspace{1.5em}
 			$\inferrule[Contract]{\Gamma, x :\ !\tau', x :\ !\tau' \vdash e : \tau}{\Gamma, x :\ !\tau' \vdash e : \tau}$ 
@@ -215,11 +222,12 @@ The various applications of linear type theory include the following:
 		\begin{mathpar}
 			$\inferrule[!-$\oplus$-Elim]{\Gamma_1 \vdash e_1 :\ !(!\tau_1 \oplus\ !\tau_2) \\ \Gamma_2, x :\ !\tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y :\ !\tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \mathrm{case}\ e_1\ \mathrm{of}\ \mathrm{left}\ x \Rightarrow e_2;\ \mathrm{right}\ y \Rightarrow e_3 : \tau_3}$
 		\end{mathpar}
-	\end{framed}
 	\caption{Invariably unique type system from \citep{wadler_is_1991}.}
 	\label{fig:wadler-invariably-unique}
 \end{figure}
-\FloatBarrier
+\end{mdframed}
+\vspace*{\fill}
+\clearpage
 
 \section{Quantitative Type Theory}\label{sec:qtt}
 Quantitative type theory (QTT) applies the idea of properly linear type theory to dependent type theory. 
@@ -265,6 +273,8 @@ Instead, both quantitative and linear type theories that use this trick and want
 \subsubsection{Applications}
 Quantitative type theory combines the benefits of linear type theory and dependent type theory, leading to far greater capabilities when specifying protocols for types \citep{brady_idris_2021}. The introduction of an erasure quantity to combine the two type theories also allows for finer-grained specification of terms that are not computationally relevant but would otherwise be expensive to compute \citep{brady_idris_2021}.
 
+\vspace*{12em} % sins have been committed
+\begin{mdframed}
 \begin{figure}[H]
 	\begin{mathpar}
 		\boxed{\Gamma \vdash} \hspace{1.5em}
@@ -291,6 +301,8 @@ Quantitative type theory combines the benefits of linear type theory and depende
 	\begin{mathpar}
 		$\inferrule[$\to$-Elim$_1$]{\Gamma_1 \vdash M :_\sigma (x :_q S) \to T \\ \Gamma_2 \vdash N :_1 S}{\Gamma_1 + \sigma q \Gamma_2 \vdash M\ N :_\sigma T}$
 	\end{mathpar}
+\end{figure}
+\begin{figure}[H]
 	\begin{mathpar}
 		$\inferrule[$\otimes$-Formation]{0\Gamma \vdash S :_0 \mathcal{U} \\ 0\Gamma, x :_0 S \vdash T :_0 \mathcal{U}}{0\Gamma \vdash (x :_q S) \otimes T :_0 \mathcal{U}}$
 	\end{mathpar}
@@ -300,8 +312,6 @@ Quantitative type theory combines the benefits of linear type theory and depende
 	\begin{mathpar}
 		$\inferrule[$\otimes$-Intro$_1$]{\Gamma_1 \vdash M :_1 S \\ \Gamma_2 \vdash N :_\sigma T[M/x]}{\sigma q \Gamma_1 + \Gamma_2 \vdash (M, N) :_\sigma (x :_q S) \otimes T}$
 	\end{mathpar}
-\end{figure}
-\begin{figure}[t]
 	\begin{mathpar}
 		$\inferrule[$\otimes$-Elim]{\Gamma_1 \vdash M :_\sigma (x :_q S) \otimes T \\ 0\Gamma_1, z :_0 (x :_q S) \otimes T \vdash U :_0 \mathcal{U} \\ \Gamma_2, x :_{\sigma q} S, y :_\sigma T \vdash N :_\sigma U[(x, y)/z]}{\Gamma_1 + \Gamma_2 \vdash \mathrm{let}_{(x\,:_q\,S) \otimes T}\ z@(x, y) = M\ \mathrm{in}_U\ N :_\sigma U[M/z]}$
 	\end{mathpar}
@@ -315,8 +325,9 @@ Quantitative type theory combines the benefits of linear type theory and depende
 	\caption{Quantitative type theory as described by \cite{svoboda_additive_2021} and inspired by \cite{atkey_syntax_2018}. Features a single type universe $\mathcal{U}$. $\rightsquigarrow$ denotes reduction. Quantities $q \in \{0, 1, \omega\}$ satisfy $p + q = q + p$, $0 + q = q$, $\omega + q = \omega$, $1 + 1 = \omega$, $p q = q p$, $0q = 0$, $1q = q$ and $\omega \omega = \omega$.}
 	\label{fig:qtt}
 \end{figure}
-
+\end{mdframed}
 \FloatBarrier
+\clearpage
 
 \section{Uniqueness Type Theory}\label{sec:uniqueness}
 \cite{smetsers_guaranteeing_1994} and \cite{barendsen_uniqueness_1996} introduce a type system for the Clean programming language with the goal of guaranteeing referential uniqueness to enable many of the applications described in \cref{sec:ltt}. The core idea is to use the linear and non-linear types of linear type systems, but instead of keeping them entirely separate or allowing for a coercion from non-linear types to linear types, the coercion is inverted, allowing for the conversion of linear types to non-linear types. 

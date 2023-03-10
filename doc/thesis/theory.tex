@@ -673,7 +673,10 @@ For \textsc{Let-VarApp}, there is a similar split as for \textsc{Let-Pap}: Depen
 \end{mathpar}
 Finally, our \textsc{Let-Proj} rules are only applicable if the specific field has not been projected from yet, but retain the variable that we project from in return. We also obtain the field in our new context. If the ADT is shared, then we need to make the new field shared as well, but do not have to zero the projected field, whereas otherwise, we obtain the field with its actual attribute, but have to zero it.
 
-\begin{figure}[p]
+\clearpage
+\vspace{6em}
+\begin{mdframed}
+\begin{figure}[H]
 	\begin{mathpar}
 		\boxed{\vdash \delta_\tau} \hspace{1.5em}
 		$\inferrule[Program]{\forall c \in \dom(\delta_\tau) \cap \dom(\delta) \text{ s.t. } \delta(c) = \lambda\ \icode{[y]}.\ \icode{F} \land \delta_\tau(\tau) = ([\tau_\param], \tau_\ret).\\ 
@@ -721,6 +724,8 @@ Finally, our \textsc{Let-Proj} rules are only applicable if the specific field h
 		}
 		{Z; \Gamma, [\icode{y} : \tau_\param] \vdash \icode{let z := c [y]; F} : \tret}$
 	\end{mathpar}
+\end{figure}
+\begin{figure}[H]
 	\begin{mathpar}
 		$\inferrule[Let-Pap-Full]{[\nz(Z, \icode{y})] 
 			\\ \delta_\tau(\icode{c}) = ([\tau_\param], \tau_\ret)
@@ -738,8 +743,6 @@ Finally, our \textsc{Let-Proj} rules are only applicable if the specific field h
 		}
 		{Z; \Gamma, [\icode{y} :\ !\tau_{\param_1}] \vdash \icode{let z := pap c [y]; F} : \tret}$
 	\end{mathpar}
-\end{figure}
-\begin{figure}[tp]
 	\begin{mathpar}
 		$\inferrule[Let-VarApp-Full]{\nz(Z, \icode{y}) 
 			\\ Z; \Gamma, \icode{z} :\ !\tau_\ret \vdash \icode{F} : \tret
@@ -779,3 +782,4 @@ Finally, our \textsc{Let-Proj} rules are only applicable if the specific field h
 	\caption{Full typing rules of our type system at a glance.}
 	\label{fig:types}
 \end{figure}
+\end{mdframed}
