@@ -2,19 +2,12 @@
 
 In this chapter, we will provide a formal description of our type theory and all the associated mechanisms required to make it work. \Cref{sec:types} introduces the syntactical material for our types and declares a number of commonly useful utility functions. \Cref{sec:ir} defines the syntax of the IR. In \cref{sec:escapeanalysis}, we specify an abstract interpretation based escape analysis in order to implement the borrowing mechanism described in \cref{sec:borrowing}. Finally, \cref{sec:checking} provides the rules of our type theory.
 
-\newcommand{\sep}{\ \ |\ \ }
-\newcommand{\icode}[1]{\textrm{\lstinline[language=ir-if]|#1|}}
-
 \section{Types}\label{sec:types}
 In all of the following sections, we use $[x]$ to denote a vector of elements $x$, otherwise commonly written as $\overline{x}$. We will often lift these brackets over an operation; e.g. the functional code $\mathrm{map}(\oplus, \mathrm{zip}([x], [y]))$ is written as $[x \oplus y]$ for vectors $[x]$ and $[y]$. In derivation rules, we also use $[x]$ for $x \in \mathbb{B}$ to mean $\forall x \in [x].\ x$.
 
 \subsection{Syntax}
 
 \newcommand{\dom}{\mathrm{dom}}
-\newcommand{\Var}{\mathrm{Var}}
-\newcommand{\Ctor}{\mathrm{Ctor}}
-\newcommand{\Proj}{\mathrm{Proj}}
-\newcommand{\Const}{\mathrm{Const}}
 \newcommand{\Attr}{\mathrm{Attr}}
 \newcommand{\ADT}{\mathrm{ADT}}
 \newcommand{\adt}{\mathrm{adt}}
@@ -169,11 +162,6 @@ Note that if higher-order functions could be unique, we would have to account fo
 For our model of the IR, we use a mixture of the IR described by \cite{ullrich_counting_2020} and the newly implemented LCNF, both detailed in \cref{sec:irs}. 
 
 \subsection{Syntax}
-
-\newcommand{\Expr}{\mathrm{Expr}}
-\newcommand{\FnBody}{\mathrm{FnBody}}
-\newcommand{\Fn}{\mathrm{Fn}}
-\newcommand{\Program}{\mathrm{Program}}
 
 \begin{alignat*}{3}
   \icode{e} &\in \Expr &\Coloneqq&\ \icode{c [y]}

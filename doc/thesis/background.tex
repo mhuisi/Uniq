@@ -1,13 +1,13 @@
 \chapter{Background}\label{sec:background}
 
 \section{Lean 4 Theorem Prover}\label{sec:lean4}
-Lean 4 is a proof assistant and programming language developed primarily by Leonardo de Moura at Microsoft Research and Sebastian Ullrich at KIT with numerous open source contributions by other authors.
+Lean 4 is a proof assistant and programming language developed primarily by Leonardo de Moura at Microsoft Research and Sebastian Ullrich at KIT with numerous open source contributions by many other authors.
 
 Up to and including version 3, Lean served only as a proof assistant, i.e. an interactive tool where users can input proofs that are then checked by the proof assistant. Many proof assistants also implement proof-generating automation, so-called ``tactic languages'', to make the task of writing a perfectly formal proof by hand less tedious. In Lean 3, the previous version of Lean, the same term language was used for proofs, theorem statements, definitions, programs, type declarations, specifications, and implementing automation. We will go into some detail on how Lean uses a single unified language for all of these things in \cref{sec:dtt}. For automation, the term language was also evaluated by a separate interpreter for more efficient execution.
 
 Unfortunately, evaluating the term language using a separate interpreter would still yield inadequate performance, both for implementing more demanding automation and for implementing real world programs, which meant that such demanding programs were written in C++ instead and then made available to Lean using a foreign-function interface (FFI) \citep{ullrich_counting_2020}.
 
-To improve on this, Lean 4 now implements its own self-hosted compiler toolchain for both a C backend and a work-in-progress LLVM backend, including its own IR, optimization pipeline and custom garbage collection algorithm. Being almost entirely self-hosted, Lean 4 is now also well capable of being used as a general purpose programming language.
+To improve on this, Lean 4 now implements its own self-hosted compiler toolchain for both a C backend and a work-in-progress LLVM \citep{lattner_llvm_2004} backend, including its own IR, optimization pipeline and custom garbage collection algorithm. Being almost entirely self-hosted, Lean 4 is now also well capable of being used as a general purpose programming language.
 
 \subsubsection{Examples}
 Let us now consider some basic examples of Lean 4 code to get a feeling for the language. It should be noted that all of the following can be expressed more succinctly, but that we have chosen not to do so in order to make these snippets easier to grasp for readers not familiar with Lean.\\
@@ -81,6 +81,93 @@ Putting all of these mechanisms together yields a type theory powerful enough to
 For a detailed formal description of Lean's type theory, we refer to \citep{carneiro_type_2019}.
 
 \section{Intermediate Representations for Lean 4}\label{sec:irs}
+As outlined in \cref{sec:lean4}, Lean 4 ultimately compiles to either C code or LLVM IR code \citep{lattner_llvm_2004}, with the latter being work-in-progress. Once compiled, much of the structure of the original Lean 4 program is lost, including types and the global guarantee of purity. Hence, introducing additional intermediate representations between Lean 4 and the resulting compiled program can help with leveraging the additional structure in the original Lean 4 code for a first pass of Lean-specific optimizations.
+
+\subsubsection{Pure IR}
+Since very early on in the development of Lean 4, the Lean compiler has compiled to the intermediate representations described by \cite{ullrich_counting_2020}, with optimizations like common subexpression elimination \citep{cocke_global_1970}, verified rewrite rules \citep{jones_playing_2001}, lambda lifting \citep{johnsson_lambda_1985}, erasure of computationally-irrelevant terms \citep{tejiscak_erasure_2019}, specialization \citep{augustsson_implementing_1993} and inlining \citep{jones_secrets_2002} being performed on Lean 4 expressions before compiling to the IR.
+
+Instead, the IR is used to implement reference counting. Programs compile to the untyped IR defined below, commonly called ``the pure IR'': 
+\newcommand{\sep}{\ \ |\ \ }
+\newcommand{\icode}[1]{\textrm{\lstinline[language=ir-if]|#1|}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\Ctor}{\mathrm{Ctor}}
+\newcommand{\Proj}{\mathrm{Proj}}
+\newcommand{\Const}{\mathrm{Const}}
+\newcommand{\Expr}{\mathrm{Expr}}
+\newcommand{\FnBody}{\mathrm{FnBody}}
+\newcommand{\Fn}{\mathrm{Fn}}
+\newcommand{\Program}{\mathrm{Program}}
+\begin{alignat*}{3}
+	\icode{x}, \icode{y} &\in \Var_\lambda \\
+	\icode{i} &\in \Ctor_\lambda \\
+	\icode{j} &\in \Proj_\lambda \\
+	\icode{c} &\in \Const_\lambda \\
+	\icode{e} &\in \Expr_\lambda &\Coloneqq&\ \icode{c\ $\overline{\texttt{y}}$}
+	\sep \icode{pap c\ $\overline{\texttt{y}}$}
+	\sep \icode{x y}
+	\sep \icode{ctorᵢ\ $\overline{\texttt{y}}$}
+	\sep \icode{projᵢⱼ y} \\
+	\icode{F} &\in \FnBody_\lambda &\Coloneqq&\ \icode{ret x}
+	\sep \icode{let x := e; F}
+	\sep \icode{case x of\ $\overline{\texttt{F}}$} \\
+	f &\in \Fn_\lambda &\Coloneqq&\ \lambda\ \overline{\texttt{y}}.\ \icode{F} \\
+	\delta &\in \Program_\lambda &=&\ \Const_\lambda \rightharpoonup \Fn_\lambda
+\end{alignat*}
+$\overline{\texttt{y}}$ is a vector of variables \icode{y}. Expressions are full applications \icode{c\ $\overline{\texttt{y}}$}, partial applications \icode{pap c\ $\overline{\texttt{y}}$}, variable applications \icode{x y} of a variable \icode{y} to a higher-order function \icode{x} created by \icode{pap}, constructor applications \icode{ctorᵢ\ $\overline{\texttt{y}}$} for a constructor \icode{i} or projections \icode{projⱼ y} for a field \icode{j} in \icode{y}. Function bodies consist of \icode{ret x}, \icode{let x := e; F} and a case-instruction \icode{case x of\ $\overline{\texttt{F}}$} that makes \icode{x} denote the \icode{i}-th constructor in \icode{$\overline{\texttt{F}}$ᵢ}. All functions are lifted out to a global map $\delta \in \Program_\lambda$.
+
+\subsubsection{Reference-counted IR}
+The Lean 4 compiler then inserts the following additional impure instructions into code in pure IR form:
+\begin{alignat*}{3}
+	\icode{e} &\in \Expr &\Coloneqq&\ \dots \sep \icode{reset x} \sep \icode{reuse x in ctorᵢ\ $\overline{\texttt{y}}$} \\
+	\icode{F} &\in \FnBody\ &\Coloneqq&\ \dots \sep \icode{inc x; F} \sep \icode{dec x; F}
+\end{alignat*}
+The resulting IR is also commonly called ``the reference-counted IR''. We will cover \icode{reset x} and \icode{reuse x in ctorᵢ\ $\overline{\texttt{y}}$} in detail in \cref{sec:beans}. \icode{inc x; F} and \icode{dec x; F} increment and decrement the reference count of the value \icode{x} respectively. When the reference count reaches 0, the value in question is not referenced anymore and can be freed safely. Since Lean 4 is a strict purely functional programming language, there can be no reference cycles.
+
+When compiling the pure IR to the reference-counted IR, the Lean compiler performs additional optimizations: Parameters are sometimes inferred as ``borrowed'', which means that the caller is keeping these parameters alive, and so they need not be reference-counted in the callee. We will encounter a similar but slightly different notion of ``borrowing'' in \cref{sec:borrowingbackground}, albeit both have in common that the caller is managing a resource for a callee.
+
+In addition to the instructions described by \cite{ullrich_counting_2020}, Lean's implementation of this IR also supports operations for boxing and unboxing of scalar values \citep{henglein_formally_1994}, as well as join point declarations and corresponding jump instructions that allow the re-joining of control flow branches \citep{maurer_compiling_2017}. We will henceforth ignore the former as an implementation detail and briefly discuss the latter in \cref{sec:ir} and \cref{sec:inference}.
+
+\subsubsection{LCNF}
+While the IRs defined above are well suited for implementing garbage collection and optimizations associated with reference counting, they lack types and hence much of the structure of the original Lean 4 program, which is why the current Lean 4 compiler performs other optimizations directly on Lean expressions. 
+
+In the current rewrite of the Lean 4 compiler toolchain that is still work-in-progress, another IR, the Lean Compiler Normal Form (LCNF), is added to mitigate this issue. LCNF is based on the implementation of A-normal form as described by \cite{maurer_compiling_2017}, where functions can only take variables as arguments, nested expressions are factored out into let-expressions and join points are generated where possible. It is defined by the following grammar:
+\newcommand{\LeanType}{\mathrm{LeanType}}
+\newcommand{\LCNF}{\mathrm{LCNF}}
+\newcommand{\DeclName}{\mathrm{DeclName}}
+\newcommand{\Arg}{\mathrm{Arg}}
+\newcommand{\LetValue}{\mathrm{LetValue}}
+\newcommand{\Case}{\mathrm{Case}}
+\newcommand{\Code}{\mathrm{Code}}
+\newcommand{\Decl}{\mathrm{Decl}}
+\begin{alignat*}{3}
+	\tau &\in \LeanType \\
+	\icode{D} &\in \DeclName_\LCNF \\
+	\icode{x}, \icode{y} &\in \Var_\LCNF \\
+	\icode{i} &\in \Ctor_\LCNF \\
+	\icode{j} &\in \Proj_\LCNF \\
+	\icode{a} &\in \Arg_\LCNF &\Coloneqq&\ \blacksquare \sep \icode{y} \sep \tau \\
+	\icode{v} &\in \LetValue_\LCNF\ &\Coloneqq&\ \blacksquare
+		\sep \icode{D\ $\overline{\texttt{a}}$}
+		\sep \icode{y\ $\overline{\texttt{a}}$}
+		\sep \icode{proj$_\texttt{j}$ y} \\
+	\icode{c} &\in \Case_\LCNF &\Coloneqq&\ \icode{ctorᵢ\ $\overline{\texttt{(y}\ \texttt{:}\ \tau\texttt{)}}$ ⇒ K} 
+		\sep \icode{default K} \\
+	\icode{K} &\in \Code_\LCNF &\Coloneqq&\ \icode{let (x :\ $\tau$) := v; K} \\
+		&&&\enspace\sep \icode{((def x\ $\overline{\texttt{(y}\ \texttt{:}\ \tau\texttt{)}}$ := K) :\ $\tau$); K} \\
+		&&&\enspace\sep \icode{((jpdef x\ $\overline{\texttt{(y}\ \texttt{:}\ \tau\texttt{)}}$ := K) :\ $\tau$); K} \\
+		&&&\enspace\sep \icode{jmp x\ $\overline{\texttt{a}}$} \\
+		&&&\enspace\sep \icode{((case x of\ $\overline{\texttt{c}}$) :\ $\tau$)} \\
+		&&&\enspace\sep \icode{ret x} \\
+	\icode{d} &\in \Decl_\LCNF &\Coloneqq&\ \lambda \overline{\texttt{(y}\ \texttt{:}\ \tau\texttt{)}}.\ K \\
+	\delta &\in \Program_\LCNF &=&\ \DeclName_\LCNF \rightharpoonup \Decl_\LCNF
+\end{alignat*}
+We have omitted some technical details from Lean's implementation of this grammar that are not relevant to this thesis. 
+
+LeanType denotes arbitrary dependent types in the form of generic Lean expressions. Declarations, variables, constructors and projections are all identified by names in their respective syntactical category. Arguments to declarations can either be erased ($\blacksquare$), variables or types. Let values can either be erased, an application of a constant declaration, an application of arguments to a variable that may contain a declaration or a function, or a projection of a variable that stores a type with only a single constructor. Cases are either destructuring patterns that match against a constructor \icode{i} and denote its fields using variables $\overline{\texttt{y}}$ with types $\overline{\tau}$, or a \icode{default} case.
+
+Code instructions can either be \icode{let} instructions, function definitions \icode{def} of type $\tau$, join point declarations \icode{jpdef} of type $\tau$, \icode{jmp} instructions that jump to a given join point with a given vector of arguments, \icode{case} or \icode{ret} instructions.
+
+After compiling Lean code to LCNF, the resulting LCNF code is simplified by many of the same optimizations that are applied to Lean code in the old compiler that works directly on Lean expressions. Near the end of the optimization phase, type dependencies and computationally irrelevant terms are erased and the resulting LCNF code can be converted to the pure IR. In the future, both the pure and the reference-counted IR will be replaced by a closely related LCNF-equivalent as well. 
 
 \section{Counting Immutable Beans}\label{sec:beans}
 
@@ -148,7 +235,7 @@ The various applications of linear type theory include the following:
 			$\inferrule[$\to$-Intro]{\Gamma, x : \tau_1 \vdash e : \tau_2 \\ \Gamma\ \mathrm{nonlinear}}{\Gamma \vdash (!\ \lambda x : \tau_1.\ e) : \tau_1 \to \tau_2}$ \hspace{1.5em}
 			$\inferrule[$\to$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \to \tau_2 \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash (!\ e_1\ e_2) : \tau_2}$
 		\end{mathpar}
-	\caption{Original linear type system from \citep{wadler_linear_1990} with separate linear and non-linear terms and types. $1$ denotes linear terms, $!$ denotes non-linear terms. ``nonlinear'' demands that the full type or context consists only of non-linear $\to$-types.}
+	\caption{Original linear type system from \cite{wadler_linear_1990} with separate linear and non-linear terms and types. $1$ denotes linear terms, $!$ denotes non-linear terms. ``nonlinear'' demands that the full type or context consists only of non-linear $\to$-types.}
 	\label{fig:wadler-original}
 \end{figure}
 \end{mdframed}
@@ -177,7 +264,7 @@ The various applications of linear type theory include the following:
 		\begin{mathpar}
 			$\inferrule[$\oplus$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \oplus \tau_2 \\ \Gamma_2, x : \tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y : \tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \mathrm{case}\ e_1\ \mathrm{of}\ \mathrm{left}\ x \Rightarrow e_2;\ \mathrm{right}\ y \Rightarrow e_3 : \tau_3}$
 		\end{mathpar}
-	\caption{Properly linear type system from \citep{wadler_is_1991} with support for multiplicative product types ($\otimes$) and multiplicative sum types ($\oplus$).}
+	\caption{Properly linear type system from \cite{wadler_is_1991} with support for multiplicative product types ($\otimes$) and multiplicative sum types ($\oplus$).}
 	\label{fig:wadler-properly-linear}
 \end{figure}
 \end{mdframed}
@@ -222,7 +309,7 @@ The various applications of linear type theory include the following:
 		\begin{mathpar}
 			$\inferrule[!-$\oplus$-Elim]{\Gamma_1 \vdash e_1 :\ !(!\tau_1 \oplus\ !\tau_2) \\ \Gamma_2, x :\ !\tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y :\ !\tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \mathrm{case}\ e_1\ \mathrm{of}\ \mathrm{left}\ x \Rightarrow e_2;\ \mathrm{right}\ y \Rightarrow e_3 : \tau_3}$
 		\end{mathpar}
-	\caption{Invariably unique type system from \citep{wadler_is_1991}.}
+	\caption{Invariably unique type system from \cite{wadler_is_1991}.}
 	\label{fig:wadler-invariably-unique}
 \end{figure}
 \end{mdframed}

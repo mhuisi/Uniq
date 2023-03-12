@@ -38,6 +38,9 @@
 	\reflectbox{$\m@th#1\rightsquigarrow$}%
 }
 \makeatother
+\makeatletter
+\newcommand*{\textoverline}[1]{$\overline{\hbox{#1}}\m@th$}
+\makeatother
 
 \def\lstlanguagefiles{lstlean.tex}
 \lstset{language=lean}
@@ -56,7 +59,17 @@
 		dec,
 		reset,
 		reuse,
-		in
+		in,
+		nat,
+		str,
+		var,
+		type,
+		lit,
+		const,
+		default,
+		def,
+		jpdef,
+		jmp
 	},
 	morecomment=[l]{--}, % l is for line comment
 }
