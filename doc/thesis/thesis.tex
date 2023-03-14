@@ -73,6 +73,21 @@
 	},
 	morecomment=[l]{--}, % l is for line comment
 }
+\lstdefinelanguage{aux}
+{
+	keywordstyle={\color{black}},
+	morekeywords={
+		left,
+		right,
+		case,
+		of,
+		let,
+		in,
+		copy,
+		as
+	},
+	morecomment=[l]{--}, % l is for line comment
+}
 
 \lstnewenvironment{ifcode}{\\\minipage{\linewidth}\lstset{xleftmargin=1.48em, language=ir-if}}{\endminipage\hfill\allowbreak}
 \lstnewenvironment{code}{\minipage{\linewidth}\lstset{xleftmargin=1.48em}}{\endminipage\hfill\allowbreak}

@@ -189,16 +189,16 @@ However, if we wish to guarantee non-functional or intensional properties for a 
 In most substructural type theories, the extra detail in the context is used to count variable uses. \cite{girard_linear_1987} was the first to notice that not assuming \textsc{Weaken} and \textsc{Contract} allows one to define so-called linear logics with dualities that allow reasoning about resource usage, and \cite{wadler_linear_1990} transports this idea to form a linear type theory with a set of entirely separate linear and non-linear types, even on the term level. See \cref{fig:wadler-original} for Wadler's original linear type system.
 
 \subsubsection{Properly linear or invariably unique}
-\cite{wadler_is_1991} then goes on to define the \textsc{Dereliction} and \textsc{Promotion} rules listed below that allow coercing a non-linear type to a linear type, as well as a ``steadfast'' type system where there is no coercion between linear and non-linear types, but both use the same term language. 
+\cite{wadler_is_1991} then goes on to define the \textsc{Dereliction} and \textsc{Promotion} rules listed below that allow coercing a non-linear type to a linear type and promoting a linear type to a nonlinear one if it only depends on nonlinear types, as well as a ``steadfast'' type system where there is no coercion between linear and non-linear types, but both use the same term language. Especially in the former, non-linear types can be understood as having an unlimited quantity of something, whereas linear types can be understood as having exactly one of something.
 \begin{mathpar}
 	$\inferrule[Dereliction]{\Gamma, x : \tau_1 \vdash e : \tau_2}{\Gamma, x :\ !\tau_1 \vdash e : \tau_2}$ \hspace{1.5em}
 	$\inferrule[Promotion]{!\Gamma \vdash e : \tau}{!\Gamma \vdash e :\ !\tau}$
 \end{mathpar}
-Here, $!\tau$ is a nonlinear type and $!\Gamma$ refers to every type in the context $\Gamma$ being non-linear. The motivation for including these rules is that $!$ can be understood as having an unlimited quantity of something, and if you have an unlimited quantity of something, you also have one of something.
+Here, $!\tau$ is a nonlinear type and $!\Gamma$ refers to every type in the context $\Gamma$ being non-linear. The motivation for including \textsc{Dereliction} is that $!$ can be understood as having an unlimited quantity of something, and if you have an unlimited quantity of something, you also have one of something. \textsc{Promotion} is justified because any single resource that can be created from resources of unlimited quantity can also be created in unlimited quantity by repeating the process.
 
 With \textsc{Dereliction} and \textsc{Promotion}, linear types make a guarantee for the future: As it could have been coerced from non-linear type, we do not know whether this variable has always been linear, but now that it is, we guarantee that it will be used exactly once. Meanwhile, in Wadler's ``steadfast'' version of the type system, as there is no coercion from non-linear to linear types, a linear variable has and will always be used exactly once.
 
-In a type system with \textsc{Dereliction} and \textsc{Promotion}, linearity is unsuited to guarantee the referential uniqueness of a variable, as it may have been duplicated in the past, an issue that is acknowledged by \cite{wadler_is_1991}. For linear type systems where linearity is guaranteed from construction onwards, \cite{chirimar_reference_1996} prove that the linearity of a variable implies the uniqueness of the associated reference.
+In a type system with \textsc{Dereliction}, linearity is unsuited to guarantee the referential uniqueness of a variable, as it may have been duplicated in the past, an issue that is acknowledged by \cite{wadler_is_1991}. For linear type systems where linearity is guaranteed from construction onwards, \cite{chirimar_reference_1996} prove that the linearity of a variable implies the uniqueness of the associated reference.
 
 Future linear type systems \citep{goos_observers_1992} \citep{atkey_syntax_2018} \citep{bernardy_linear_2018} \citep{brady_idris_2021} \citep{choudhury_graded_2021} \citep{li_linear_2022} \citep{spiwack_linearly_2022} always adopt one of these two approaches and either allow for a non-linear to linear coercion, or no coercion at all, thus cementing the idea of ``linearity'' referring to either ``always uniquely referenced'' or ``used linearly from this point onwards''. The latter can be made to act like the former by guaranteeing referential uniqueness through other means, e.g. by making every constructor of a certain type return a value of linear type, effectively turning referential uniqueness into a library design decision.
 
@@ -218,6 +218,7 @@ The various applications of linear type theory include the following:
 	\item Inverting the computation of functions \citep{matsuda_sparcl_2020}
 \end{itemize}
 \clearpage
+\newcommand{\acode}[1]{\textrm{\lstinline[language=aux]|#1|}}
 \topskip0pt
 \vspace*{\fill}
 \begin{mdframed}
@@ -255,14 +256,14 @@ The various applications of linear type theory include the following:
 		\end{mathpar}
 		\begin{mathpar}
 			$\inferrule[$\otimes$-Intro]{\Gamma_1 \vdash e_1 : \tau_1 \\ \Gamma_2 \vdash e_2 : \tau_2}{\Gamma_1, \Gamma_2 \vdash (e_1, e_2) : \tau_1 \otimes \tau_2}$ \hspace{1.5em}
-			$\inferrule[$\otimes$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \otimes \tau_2 \\ \Gamma_2, x : \tau_1, y : \tau_2 \vdash e_2 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \mathrm{case}\ e_1\ \mathrm{of}\ (x, y) \Rightarrow e_2 : \tau_3}$
+			$\inferrule[$\otimes$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \otimes \tau_2 \\ \Gamma_2, x : \tau_1, y : \tau_2 \vdash e_2 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ (x, y) \Rightarrow e_2 : \tau_3}$
 		\end{mathpar}
 		\begin{mathpar}
-			$\inferrule[$\oplus$-Intro-Left]{\Gamma \vdash e : \tau_1}{\Gamma \vdash \mathrm{left}\ e : \tau_1 \oplus \tau_2}$ \hspace{1.5em}
-			$\inferrule[$\oplus$-Intro-Right]{\Gamma \vdash e : \tau_2}{\Gamma \vdash \mathrm{right}\ e : \tau_1 \oplus \tau_2}$ 
+			$\inferrule[$\oplus$-Intro-Left]{\Gamma \vdash e : \tau_1}{\Gamma \vdash \acode{left}\ e : \tau_1 \oplus \tau_2}$ \hspace{1.5em}
+			$\inferrule[$\oplus$-Intro-Right]{\Gamma \vdash e : \tau_2}{\Gamma \vdash \acode{right}\ e : \tau_1 \oplus \tau_2}$ 
 		\end{mathpar}
 		\begin{mathpar}
-			$\inferrule[$\oplus$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \oplus \tau_2 \\ \Gamma_2, x : \tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y : \tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \mathrm{case}\ e_1\ \mathrm{of}\ \mathrm{left}\ x \Rightarrow e_2;\ \mathrm{right}\ y \Rightarrow e_3 : \tau_3}$
+			$\inferrule[$\oplus$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \oplus \tau_2 \\ \Gamma_2, x : \tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y : \tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ \acode{left}\ x \Rightarrow e_2;\ \acode{right}\ y \Rightarrow e_3 : \tau_3}$
 		\end{mathpar}
 	\caption{Properly linear type system from \cite{wadler_is_1991} with support for multiplicative product types ($\otimes$) and multiplicative sum types ($\oplus$).}
 	\label{fig:wadler-properly-linear}
@@ -285,14 +286,14 @@ The various applications of linear type theory include the following:
 		\end{mathpar}
 		\begin{mathpar}
 			$\inferrule[$\otimes$-Intro]{\Gamma_1 \vdash e_1 : \tau_1 \\ \Gamma_2 \vdash e_2 : \tau_2}{\Gamma_1, \Gamma_2 \vdash (e_1, e_2) : \tau_1 \otimes \tau_2}$ \hspace{1.5em}
-			$\inferrule[$\otimes$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \otimes \tau_2 \\ \Gamma_2, x : \tau_1, y : \tau_2 \vdash e_2 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \mathrm{case}\ e_1\ \mathrm{of}\ (x, y) \Rightarrow e_2 : \tau_3}$
+			$\inferrule[$\otimes$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \otimes \tau_2 \\ \Gamma_2, x : \tau_1, y : \tau_2 \vdash e_2 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ (x, y) \Rightarrow e_2 : \tau_3}$
 		\end{mathpar}
 		\begin{mathpar}
-			$\inferrule[$\oplus$-Intro-Left]{\Gamma \vdash e : \tau_1}{\Gamma \vdash \mathrm{left}\ e : \tau_1 \oplus \tau_2}$ \hspace{1.5em}
-			$\inferrule[$\oplus$-Intro-Right]{\Gamma \vdash e : \tau_2}{\Gamma \vdash \mathrm{right}\ e : \tau_1 \oplus \tau_2}$ 
+			$\inferrule[$\oplus$-Intro-Left]{\Gamma \vdash e : \tau_1}{\Gamma \vdash \acode{left}\ e : \tau_1 \oplus \tau_2}$ \hspace{1.5em}
+			$\inferrule[$\oplus$-Intro-Right]{\Gamma \vdash e : \tau_2}{\Gamma \vdash \acode{right}\ e : \tau_1 \oplus \tau_2}$ 
 		\end{mathpar}
 		\begin{mathpar}
-			$\inferrule[$\oplus$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \oplus \tau_2 \\ \Gamma_2, x : \tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y : \tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \mathrm{case}\ e_1\ \mathrm{of}\ \mathrm{left}\ x \Rightarrow e_2;\ \mathrm{right}\ y \Rightarrow e_3 : \tau_3}$
+			$\inferrule[$\oplus$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \oplus \tau_2 \\ \Gamma_2, x : \tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y : \tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ \acode{left}\ x \Rightarrow e_2;\ \acode{right}\ y \Rightarrow e_3 : \tau_3}$
 		\end{mathpar}
 		\begin{mathpar}
 			$\inferrule[!-$\multimap$-Intro]{!\Gamma, x : \tau_1 \vdash e : \tau_2}{!\Gamma \vdash \lambda x : \tau_1.\ e :\ !(\tau_1 \multimap \tau_2)}$ \hspace{1.5em}
@@ -300,14 +301,14 @@ The various applications of linear type theory include the following:
 		\end{mathpar}
 		\begin{mathpar}
 			$\inferrule[!-$\otimes$-Intro]{\Gamma_1 \vdash e_1 :\ !\tau_1 \\ \Gamma_2 \vdash e_2 :\ !\tau_2}{\Gamma_1, \Gamma_2 \vdash (e_1, e_2) :\ !(!\tau_1 \otimes\ !\tau_2)}$ \hspace{1.5em}
-			$\inferrule[!-$\otimes$-Elim]{\Gamma_1 \vdash e_1 :\ !(!\tau_1 \otimes\ !\tau_2) \\ \Gamma_2, x :\ !\tau_1, y :\ !\tau_2 \vdash e_2 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \mathrm{case}\ e_1\ \mathrm{of}\ (x, y) \Rightarrow e_2 : \tau_3}$
+			$\inferrule[!-$\otimes$-Elim]{\Gamma_1 \vdash e_1 :\ !(!\tau_1 \otimes\ !\tau_2) \\ \Gamma_2, x :\ !\tau_1, y :\ !\tau_2 \vdash e_2 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ (x, y) \Rightarrow e_2 : \tau_3}$
 		\end{mathpar}
 		\begin{mathpar}
-			$\inferrule[!-$\oplus$-Intro-Left]{\Gamma \vdash e :\ !\tau_1}{\Gamma \vdash \mathrm{left}\ e :\ !(!\tau_1 \oplus\ !\tau_2)}$ \hspace{1.5em}
-			$\inferrule[!-$\oplus$-Intro-Right]{\Gamma \vdash e :\ !\tau_2}{\Gamma \vdash \mathrm{right}\ e :\ !(!\tau_1 \oplus\ !\tau_2)}$ 
+			$\inferrule[!-$\oplus$-Intro-Left]{\Gamma \vdash e :\ !\tau_1}{\Gamma \vdash \acode{left}\ e :\ !(!\tau_1 \oplus\ !\tau_2)}$ \hspace{1.5em}
+			$\inferrule[!-$\oplus$-Intro-Right]{\Gamma \vdash e :\ !\tau_2}{\Gamma \vdash \acode{right}\ e :\ !(!\tau_1 \oplus\ !\tau_2)}$ 
 		\end{mathpar}
 		\begin{mathpar}
-			$\inferrule[!-$\oplus$-Elim]{\Gamma_1 \vdash e_1 :\ !(!\tau_1 \oplus\ !\tau_2) \\ \Gamma_2, x :\ !\tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y :\ !\tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \mathrm{case}\ e_1\ \mathrm{of}\ \mathrm{left}\ x \Rightarrow e_2;\ \mathrm{right}\ y \Rightarrow e_3 : \tau_3}$
+			$\inferrule[!-$\oplus$-Elim]{\Gamma_1 \vdash e_1 :\ !(!\tau_1 \oplus\ !\tau_2) \\ \Gamma_2, x :\ !\tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y :\ !\tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ \acode{left}\ x \Rightarrow e_2;\ \acode{right}\ y \Rightarrow e_3 : \tau_3}$
 		\end{mathpar}
 	\caption{Invariably unique type system from \cite{wadler_is_1991}.}
 	\label{fig:wadler-invariably-unique}
@@ -350,11 +351,11 @@ The typing rules for quantitative type theory as described by \cite{svoboda_addi
 \subsubsection{Demand-based consumption}
 Finally, note that by denoting the linear quantity on the binder in $(x :_1 \tau_1) \to \tau_2$, we cannot specify a quantity for $\tau_2$ any more, as we could in linear type theory by using either a linear or non-linear type for the return type. Instead, when checking an application $f\ (g\ e) :_1 \tau_3$ for $f :_1 (x :_q \tau_2) \to \tau_3$, $g :_1 (x :_1 \tau_1) \to \tau_2$ and $e :_1 \tau_1$, we demand $q$ instances of the resources $\Gamma$ required to check $g\ e :_1 \tau_2$. 
 
-In other words, if we need $q$ instances of a return value that requires $\Gamma$ resources to produce, we instead demand $q \cdot \Gamma$ resources in our context, pretending that we applied the function $q$ times to obtain $q$ instances of the return value. This way, quantities need not be specified on return values, and the resources for the arguments are consumed based on the required amount of the return value.
+In other words, if we need $q$ instances of a return value that requires $\Gamma$ resources to produce, we instead demand $q \cdot \Gamma$ resources in our context, pretending that we applied the function $q$ times to obtain $q$ instances of the return value. This way, quantities need not be specified on return values, and the resources for the arguments are consumed based on the required amount of the return value. The \textsc{Promotion} rule from \cref{sec:ltt} is integrated into the rules for other types.
 
 This trick is not inherent to quantitative types and can be applied to linear type systems of any kind by taking $f : \tau_1 \multimap \tau_2$ to mean ``$f$ consumes one of $\tau_1$ for every instance of $\tau_2$ that is required'', e.g.\ as in Linear Haskell \citep{bernardy_linear_2018} or in \cite{ghica_bounded_2014}. 
 
-However, it is not entirely for free: If one wishes to both use a linear or quantitative type system with \textsc{Dereliction} and \textsc{Promotion}, as well as guarantee referential uniqueness, then the lack of an annotation on the return type of functions means that we cannot simply annotate every constructor to return a linear type in order to ensure referential uniqueness, as described in \cref{sec:ltt}. 
+However, it is not entirely for free: If one wishes to both use a linear or quantitative type system with \textsc{Dereliction}, as well as guarantee referential uniqueness, then the lack of an annotation on the return type of functions means that we cannot simply annotate every constructor to return a linear type in order to ensure referential uniqueness, as described in \cref{sec:ltt}. 
 Instead, both quantitative and linear type theories that use this trick and want to guarantee referential uniqueness define constructors in a continuation passing manner; e.g.\ $\mathrm{mkArray} : \mathbb{N} \multimap \alpha \multimap \mathrm{Array}\ \alpha$ becomes $\mathrm{mkArray} : \mathbb{N} \multimap \alpha \multimap (\mathrm{Array}\ \alpha \multimap\ !\tau) \multimap\ !\tau$ \citep{bernardy_linear_2018}.
 
 \subsubsection{Applications}
@@ -400,14 +401,14 @@ Quantitative type theory combines the benefits of linear type theory and depende
 		$\inferrule[$\otimes$-Intro$_1$]{\Gamma_1 \vdash M :_1 S \\ \Gamma_2 \vdash N :_\sigma T[M/x]}{\sigma q \Gamma_1 + \Gamma_2 \vdash (M, N) :_\sigma (x :_q S) \otimes T}$
 	\end{mathpar}
 	\begin{mathpar}
-		$\inferrule[$\otimes$-Elim]{\Gamma_1 \vdash M :_\sigma (x :_q S) \otimes T \\ 0\Gamma_1, z :_0 (x :_q S) \otimes T \vdash U :_0 \mathcal{U} \\ \Gamma_2, x :_{\sigma q} S, y :_\sigma T \vdash N :_\sigma U[(x, y)/z]}{\Gamma_1 + \Gamma_2 \vdash \mathrm{let}_{(x\,:_q\,S) \otimes T}\ z@(x, y) = M\ \mathrm{in}_U\ N :_\sigma U[M/z]}$
+		$\inferrule[$\otimes$-Elim]{\Gamma_1 \vdash M :_\sigma (x :_q S) \otimes T \\ 0\Gamma_1, z :_0 (x :_q S) \otimes T \vdash U :_0 \mathcal{U} \\ \Gamma_2, x :_{\sigma q} S, y :_\sigma T \vdash N :_\sigma U[(x, y)/z]}{\Gamma_1 + \Gamma_2 \vdash \acode{let}_{(x\,:_q\,S) \otimes T}\ z@(x, y) = M\ \acode{in}_U\ N :_\sigma U[M/z]}$
 	\end{mathpar}
 	\begin{mathpar}
 		$\inferrule[$\mathbb{1}$-Formation]{0\Gamma \vdash}{0\Gamma \vdash \mathbb{1} :_0 \mathcal{U}}$ \hspace{1.5em}
 		$\inferrule[$\mathbb{1}$-Intro]{0\Gamma \vdash}{0\Gamma \vdash () :_\sigma \mathbb{1}}$
 	\end{mathpar}
 	\begin{mathpar}
-		$\inferrule[$\mathbb{1}$-Elim]{\Gamma_1 \vdash M :_\sigma \mathbb{1} \\ 0\Gamma_1, x :_0 \mathbb{1} \vdash S :_0 \mathcal{U} \\ \Gamma_2 \vdash N :_\sigma S[()/x]}{\Gamma_1 + \Gamma_2 \vdash \mathrm{let}_\mathbb{1}\ x@() = M\ \mathrm{in}_S\ N :_\sigma S[M/x]}$
+		$\inferrule[$\mathbb{1}$-Elim]{\Gamma_1 \vdash M :_\sigma \mathbb{1} \\ 0\Gamma_1, x :_0 \mathbb{1} \vdash S :_0 \mathcal{U} \\ \Gamma_2 \vdash N :_\sigma S[()/x]}{\Gamma_1 + \Gamma_2 \vdash \acode{let}_\mathbb{1}\ x@() = M\ \acode{in}_S\ N :_\sigma S[M/x]}$
 	\end{mathpar}
 	\caption{Quantitative type theory as described by \cite{svoboda_additive_2021} and inspired by \cite{atkey_syntax_2018}. Features a single type universe $\mathcal{U}$. $\rightsquigarrow$ denotes reduction. Quantities $q \in \{0, 1, \omega\}$ satisfy $p + q = q + p$, $0 + q = q$, $\omega + q = \omega$, $1 + 1 = \omega$, $p q = q p$, $0q = 0$, $1q = q$ and $\omega \omega = \omega$.}
 	\label{fig:qtt}
@@ -422,6 +423,10 @@ Quantitative type theory combines the benefits of linear type theory and depende
 The motivation for this idea is that both properly linear type systems that guarantee referential uniqueness through careful library design and invariably unique type systems are too restrictive: For some use-cases of referential uniqueness, like destructive updates, it is perfectly acceptable to discard the uniqueness guarantee at some point, because the lack of a static uniqueness guarantee can still be mitigated through other means, as for example in \cref{sec:beans}, or because it is simply not needed for the remainder of the program. 
 
 As long as there is a coercion from linear types to non-linear types, uniqueness type systems refer to linear types as ``unique'' (tagged with $*$ in the type system) and non-linear types as ``non-unique'' or ``shared'' (tagged with $!$ in the type system). The temporal guarantee becomes inverted: While linear types ensure that a variable is always used exactly once in the future, uniqueness types ensure that a variable has always been used exactly once in the past \citep{de_vries_making_2009}\citep{sergey_linearity_2022}.
+\begin{mathpar}
+	$\inferrule[Shallow-Cast-Left]{\Gamma, x :\ !\tau \vdash e : \tau'}{\Gamma, x : *\tau \vdash e : \tau'}$ \hspace{1.5em}
+	$\inferrule[Shallow-Cast-Right]{\Gamma \vdash e : *\tau}{\Gamma \vdash e :\ !\tau}$
+\end{mathpar}
 
 \subsubsection{Uniqueness types by library design}
 Implementations like the one in Linear Haskell \citep{bernardy_linear_2018} acknowledge the over-restrictiveness of linear type theory and make the coercion from linear to non-linear types a part of their library design as well: If MArray represents an array that is always guaranteed to be linear because its constructor has type $\mathrm{newMArray} :\ !\mathbb{N} \multimap (\mathrm{MArray}\ \alpha \multimap\ !\beta) \multimap\ !\beta$, then the coercion is $\mathrm{freeze} : \mathrm{MArray}\ \alpha \multimap\ !(\mathrm{Array}\ \alpha)$. 
@@ -438,7 +443,7 @@ In uniqueness type systems, there are a number of challenges that do not appear 
 
 If, on the other hand, the type system is invariably unique and $\tau_1$ is linear, then the former example $!(\tau_1 \otimes \tau_2)$ is malformed, as deconstructing the product and obtaining the linear $\tau_1$ will not actually yield us a guarantee that the corresponding value has not been shared in the past, as e.g. the product could have been shared. 
 
-Hence, we must enforce that non-linear or non-unique types cannot contain linear or unique types. In invariably unique type systems, e.g. Wadler's steadfast linear types from \cite{wadler_is_1991}, the answer is usually to enforce this invariant during the construction of a value. For example, constructing $!(\tau_1 \otimes \tau_2)$ becomes possible only when both $\tau_1$ and $\tau_2$ are non-linear.
+Hence, we must enforce that non-linear or non-unique types cannot contain linear or unique types. In invariably unique type systems, e.g. Wadler's steadfast linear types from \cite{wadler_is_1991}, the answer is usually to enforce this invariant when constructing a value. For example, constructing $!(\tau_1 \otimes \tau_2)$ becomes possible only when both $\tau_1$ and $\tau_2$ are non-linear.
 
 With uniqueness types, the situation is unfortunately more complicated: If it is possible to discard the uniqueness of a value, then the invariant that non-unique types cannot contain unique types does not just need to be enforced at construction, but after discarding the uniqueness of a value as well. 
 
@@ -454,9 +459,41 @@ In a uniqueness type system, this situation is again much more complicated becau
 
 The trick described at the end of \cref{sec:qtt} that allows for specifying whether a value is linear or non-linear only on binders rests on the fact that there is a coercion from non-linear to linear values, so that a function $f : \tau_1 \multimap\ !\tau_2$ can be coerced to $f : \tau_1 \multimap \tau_2$, after which the amount of required $\tau_1$ is scaled up by the amount of $\tau_2$ resources needed in the context. In other words, uniqueness types are not ``quantitative'' in the sense that the intuitions for reasoning about amounts of resources do not apply to them.
 
-Instead, one approach to combine uniqueness types with dependent type theory is Graded Modal Dependent Type Theory (GRTT) \citep{moon_graded_2021}, a dependent type theory with a linearly typed substructural base that allows attaching generic modalities to types. \cite{sergey_linearity_2022} integrate uniqueness types into Granule \citep{orchard_quantitative_2019}, a non-dependently-typed precursor to GRTT. Unfortunately, their type system does not allow the use of unique types within other unique types, only within linear types. 
+Instead, one approach to combine uniqueness types with dependent type theory is Graded Modal Dependent Type Theory (GRTT) \citep{moon_graded_2021}, a dependent type theory with a linearly typed substructural base that allows attaching generic modalities to types. \cite{sergey_linearity_2022} integrate uniqueness types into Granule \citep{orchard_quantitative_2019}, a non-dependently-typed precursor to GRTT. Unfortunately, their type system does not allow the use of unique types within other unique types, only within linear types. The uniqueness fragment of the type system can be found in \cref{fig:marshall-unique}.
 
 We also believe that it might be possible to take only the idea of an erasure attribute from QTT and use it to build a dependent type theory that includes uniqueness types, though this is out of scope for this thesis.
+
+\begin{mdframed}
+	\begin{figure}[H]
+		\begin{mathpar}
+			$\inferrule[Var]{ }{!\Gamma, x : \tau \vdash x : \tau}$ \hspace{1.5em}
+			$\inferrule[$\multimap$-Intro]{\Gamma, x : \tau_1 \vdash e : \tau_2}{\Gamma \vdash \lambda x.\ e : \tau_1 \multimap \tau_2}$ \hspace{1.5em}
+			$\inferrule[$\multimap$-Elim]{\Gamma_1, e_1 : \tau_1 \multimap \tau_2 \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash e_1\ e_2 : \tau_2}$
+		\end{mathpar}
+		\begin{mathpar}
+			$\inferrule[Contract]{\Gamma, x :\ !\tau', x :\ !\tau' \vdash e : \tau}{\Gamma, x :\ !\tau' \vdash e : \tau}$ \hspace{1.5em}
+			$\inferrule[$\mathbb{1}$-Intro]{ }{!\Gamma \vdash () : \mathbb{1}}$ \hspace{1.5em}
+			$\inferrule[$\mathbb{1}$-Elim]{\Gamma_1 \vdash e_1 : \mathbb{1} \\ \Gamma_2 \vdash e_2 : \tau}{\Gamma_1, \Gamma_2 \vdash \acode{let}\ () = e_1\ \acode{in}\ e_2 : \tau}$
+		\end{mathpar}
+		\begin{mathpar}
+			$\inferrule[$\otimes$-Intro]{\Gamma_1 \vdash e_1 : \tau_1 \\ \Gamma_2 \vdash e_2 : \tau_2}{\Gamma_1, \Gamma_2 \vdash (e_1, e_2) : \tau_1 \otimes \tau_2}$ \hspace{1.5em}
+			$\inferrule[$\otimes$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \otimes \tau_2 \\ \Gamma_2, x : \tau_1, y : \tau_2 \vdash e_2 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{let}\ (x, y) = e_1\ \acode{in}\ e_2 : \tau_3}$
+		\end{mathpar}
+		\begin{mathpar}
+			$\inferrule[Dereliction]{\Gamma, x : \tau_1 \vdash e : \tau_2}{\Gamma, x :\ !\tau_1 \vdash e : \tau_2}$ \hspace{1.5em}
+			$\inferrule[Promotion]{!\Gamma \vdash e : \tau}{!\Gamma \vdash\ !e :\ !\tau}$ \hspace{1.5em}
+			$\inferrule[$!$-Elim]{\Gamma_1 \vdash e_1 :\ !\tau_1 \\ \Gamma_2, x :\ !\tau_1 \vdash e_2 : \tau_2}{\Gamma_1, \Gamma_2 \vdash \acode{let}\ !x = e_1\ \acode{in}\ e_2 : \tau_2}$
+		\end{mathpar}
+		\begin{mathpar}
+			$\inferrule[Shallow-Cast]{\Gamma \vdash e : *\tau}{\Gamma \vdash \&e :\ !\tau}$ \hspace{1.5em}
+			$\inferrule[Copy]{\Gamma_1 \vdash e_1 :\ !\tau_1 \\ \Gamma_2, x : *\tau_1 \vdash e_2 :\ !\tau_2}{\Gamma_1, \Gamma_2 \vdash \acode{copy}\ e_1\ \acode{as}\ x\ \acode{in}\ e_2 :\ !\tau_2}$ \hspace{1.5em}
+			$\inferrule[Necessitation]{\emptyset \vdash t : \tau}{!\Gamma \vdash *e : *\tau}$
+		\end{mathpar}
+		\caption{Properly linear type system of \cite{sergey_linearity_2022} that includes a uniqueness modality. Unique values cannot be contained within unique values, as \textsc{Shallow-Cast} would allow duplicating the inner unique values. As a result, all the built-in container types are linear. \textsc{Copy} allows temporarily denoting a non-linear value as unique; the unique value is guaranteed not to escape in $e_2$ because unique values cannot be contained within shared values due to the context restriction in \textsc{Promotion}. \textsc{Necessitation} allows the creation of unique values that have no dependencies. \textsc{Weaken} is integrated within \textsc{Var}, \textsc{$\mathbb{1}$-Intro} and \textsc{Necessitation}.}
+		\label{fig:marshall-unique}
+	\end{figure}
+\end{mdframed}
+\clearpage
 
 \section{Borrowing}\label{sec:borrowingbackground}
 Linear type theory, quantitative type theory and uniqueness type theory all have one inconvenience in common: Every function consumes all of its arguments, and so a function that only reads from a linear or unique argument will lose the reference in the process. As we are working in the context of pure functional programming languages, a reference being ``read-only'' in a function refers to the fact that the reference does not escape the function.
@@ -484,10 +521,15 @@ We feel that constraint systems are an interesting approach, but that as formula
 \subsubsection{Complex borrowing}
 Finally, linear references may not just get lost when passed as function arguments themselves, but when stored within a function argument as well. For example, in $\mathrm{fst} : \tau_1 \otimes \tau_2 \multimap \tau_1$, $\tau_1$ escapes, but $\tau_2$ is lost. Unfortunately, this issue is much more difficult to resolve, as we cannot retain our unique reference to $\tau_2$ without also retaining our unique reference to $\tau_1 \otimes \tau_2$, with which we will also retain our unique reference to $\tau_1$, a reference that is not unique anymore after application of $\mathrm{fst}$. 
 
-Inspired by Rust \citep{weiss_oxide_2021}, \citep{spiwack_linearly_2022} suggest introducing primitive ``lending'' functions that take a compound value and a continuation such that temporary read access is granted to a component of the compound value, the compound value itself is not accessible and the component is guaranteed not to escape in the continuation. After the continuation returns, access to the compound value is returned. 
+Inspired by Rust \citep{weiss_oxide_2021}, \cite{spiwack_linearly_2022} suggest introducing primitive ``lending'' functions that grant temporary read access into a type, for example as follows for a linear type \icode{MArray} that is allowed to contain other linear types:\\
+\begin{code}
+	lend : MArray α ⊸ !ℕ ⊸ (!α ⊸ β) ⊸ Array α ⊗ β
+\end{code}
 
-We will not touch on this complex form of borrowing in this thesis and will instead focus on the simpler notion of borrowing function arguments themselves.
+Here, the unique reference to the array is consumed by \icode{lend} and hence unavailable in the continuation of type \icode{!α ⊸ β}. \icode{!α} provides read-only access to the array value indexed by the argument of type \icode{!ℕ}. The constraint mechanism additionally ensures that the argument of type \icode{!α} cannot escape in \icode{!α}, as well as that the explicit threading of \icode{Array α} becomes implicit.
 
-\todo{say something about other forms of borrowing}
+For \icode{MArray}, \cite{spiwack_linearly_2022} define another complex borrowing mechanism inspired by Rust: A function \icode{split} allows slicing an array \icode{a} at an index \icode{i}, consuming the original array in the process and producing two linear slices \icode{x := a[0:i)} and \icode{y := a[i:len(a))}, plus a token which witnesses that \icode{x} and \icode{y} are slices of \icode{a}. Then, a function \icode{join} can efficiently put two such slices with an associated witness token back together.
+
+Primitive dedicated borrowing operations can be defined for many other types as well. We will not touch on this form of borrowing in this thesis and will instead focus on the simpler notion of borrowing function arguments themselves.
 
 \section{Abstract Interpretation}

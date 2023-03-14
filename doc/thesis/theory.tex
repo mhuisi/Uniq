@@ -553,9 +553,9 @@ The \textsc{Program} rule states that in order to check a program $\delta_\tau$,
 	$\inferrule[Forget]{Z; \Gamma \vdash \icode{F} : \tret}{Z; \Gamma, \icode{x} :\ !\tau \vdash \icode{F} : \tret}$
 \end{mathpar}
 \begin{mathpar}
-	$\inferrule[Downcast]{\tau \succcurlyeq \tau' \\ \nz(Z, \icode{x}) \\ Z; \Gamma, \icode{x} : \tau' \vdash \icode{F} : \tret}{Z; \Gamma, \icode{x} : \tau \vdash \icode{F} : \tret}$
+	$\inferrule[Cast]{\tau \succcurlyeq \tau' \\ \nz(Z, \icode{x}) \\ Z; \Gamma, \icode{x} : \tau' \vdash \icode{F} : \tret}{Z; \Gamma, \icode{x} : \tau \vdash \icode{F} : \tret}$
 \end{mathpar}
-\textsc{Duplicate} and \textsc{Forget} allow manipulating variables of shared type in the context as if the context was a set and structural. Note that $!\tau$ is an application of the $!(\cdot)$ function defined in \cref{sec:types} and that unique variables cannot be manipulated in this manner; their exact amount in the context needs to be tracked. Meanwhile, the \textsc{Downcast} rule allows applying the subtyping relation also defined in \cref{sec:types}.
+\textsc{Duplicate} and \textsc{Forget} allow manipulating variables of shared type in the context as if the context was a set and structural. Note that $!\tau$ is an application of the $!(\cdot)$ function defined in \cref{sec:types} and that unique variables cannot be manipulated in this manner; their exact amount in the context needs to be tracked. Meanwhile, the \textsc{Cast} rule allows applying the subtyping relation also defined in \cref{sec:types}.
 
 \subsubsection{Erasure}
 \begin{mathpar}
@@ -679,7 +679,7 @@ Finally, our \textsc{Let-Proj} rules are only applicable if the specific field h
 		$\inferrule[Forget]{Z; \Gamma \vdash \icode{F} : \tret}{Z; \Gamma, \icode{x} :\ !\tau \vdash \icode{F} : \tret}$
 	\end{mathpar}
 	\begin{mathpar}
-		$\inferrule[Downcast]{\tau \succcurlyeq \tau' \\ \nz(Z, \icode{x}) \\ Z; \Gamma, \icode{x} : \tau' \vdash \icode{F} : \tret}{Z; \Gamma, \icode{x} : \tau \vdash \icode{F} : \tret}$
+		$\inferrule[Cast]{\tau \succcurlyeq \tau' \\ \nz(Z, \icode{x}) \\ Z; \Gamma, \icode{x} : \tau' \vdash \icode{F} : \tret}{Z; \Gamma, \icode{x} : \tau \vdash \icode{F} : \tret}$
 	\end{mathpar}
 	\begin{mathpar}
 		$\inferrule[$\blacksquare$-Cast]{Z; \Gamma, \icode{x} : \weakenInner(\tau) \vdash \icode{F} : \tret}{Z; \Gamma, \icode{x} : \attr(\tau)\ \blacksquare \vdash \icode{F} : \tret}$ \hspace{1.5em}
