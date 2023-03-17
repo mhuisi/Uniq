@@ -3,7 +3,7 @@
 \section{Lean 4 Theorem Prover}\label{sec:lean4}
 Lean 4 is a proof assistant and programming language developed primarily by Leonardo de Moura at Microsoft Research and Sebastian Ullrich at KIT with numerous open source contributions by many other authors.
 
-Up to and including version 3, Lean served only as a proof assistant, i.e. an interactive tool where users can input proofs that are then checked by the proof assistant. Many proof assistants also implement proof-generating automation, so-called ``tactic languages'', to make the task of writing a perfectly formal proof by hand less tedious. In Lean 3, the previous version of Lean, the same term language was used for proofs, theorem statements, definitions, programs, type declarations, specifications, and implementing automation. We will go into some detail on how Lean uses a single unified language for all of these things in \cref{sec:dtt}. For automation, the term language was also evaluated by a separate interpreter for more efficient execution.
+Up to and including version 3, Lean served only as a proof assistant, i.e.\ an interactive tool where users can input proofs that are then checked by the proof assistant. Many proof assistants also implement proof-generating automation, so-called ``tactic languages'', to make the task of writing a perfectly formal proof by hand less tedious. In Lean 3, the previous version of Lean, the same term language was used for proofs, theorem statements, definitions, programs, type declarations, specifications, and implementing automation. We will go into some detail on how Lean uses a single unified language for all of these things in \cref{sec:dtt}. For automation, the term language was also evaluated by a separate interpreter for more efficient execution.
 
 Unfortunately, evaluating the term language using a separate interpreter would still yield inadequate performance, both for implementing more demanding automation and for implementing real world programs, which meant that such demanding programs were written in C++ instead and then made available to Lean using a foreign-function interface (FFI) \citep{ullrich_counting_2020}.
 
@@ -25,23 +25,23 @@ def List.get? : List α → Nat → Option α
   | _ :: xs, n + 1 => List.get? xs n
 \end{code}
 
-\lstinline|List.get?| is implemented by recursion both on the provided list and the index provided in the second argument. It yields an \lstinline|Option α|, i.e. either \lstinline|Option.some α| if the index is in the list, or \lstinline|Option.none| otherwise.\\
+\lstinline|List.get?| is implemented by recursion both on the provided list and the index provided in the second argument. It yields an \lstinline|Option α|, i.e.\ either \lstinline|Option.some α| if the index is in the list, or \lstinline|Option.none| otherwise.\\
 \begin{code}
 def Array.groupBy (p : α → α → Ordering) (xs : Array α)
   : RBMap α (Array α) p := Id.run do
   let mut result : RBMap α (Array α) p := RBMap.empty
   for x in xs do
-    let group := Option.getD (RBMap.find? result x) #[]
-    result := RBMap.insert result x (Array.push group x)
+    let group := Option.getD (RBMap.find? p result x) #[]
+    result := RBMap.insert p result x (Array.push group x)
   return result
 \end{code}
 
-\lstinline|Array.groupBy| is implemented using an imperative domain-specific language (DSL) based on do-notation \citep{ullrich_beyond_2022}. It takes a relation \lstinline|p| that yields an \lstinline|Ordering|, i.e. whether the first argument is greater than, smaller than or equal to the second argument, as well as the array to group the elements of. It returns a red-black map ordered by \lstinline|p|, where the keys are arbitrary representatives of the group and the values denote groups \lstinline|Array α| of \lstinline|p|-equivalent values.
+\lstinline|Array.groupBy| is implemented using an imperative domain-specific language (DSL) based on do-notation \citep{ullrich_beyond_2022}. It takes a relation \lstinline|p| that yields an \lstinline|Ordering|, i.e.\ whether the first argument is greater than, smaller than or equal to the second argument, as well as the array to group the elements of. It returns a red-black map ordered by \lstinline|p|, where the keys are arbitrary representatives of the group and the values denote groups \lstinline|Array α| of \lstinline|p|-equivalent values.
 
 In order to use do-notation, we need to run the code in a monad. Since we do not intend to accumulate any effects and only use do-notation for its imperative domain-specific language (DSL), we use the \lstinline|Id| monad, entering it using \lstinline|Id.run|. First, we initialize a mutable but empty red-black map, denoting our result. Then, we iterate over every element \lstinline|x| in the provided array and look for a group in the current result that is \lstinline|p|-equivalent to \lstinline|x|. If we find such a group, we store it in \lstinline|group|. Otherwise, we allocate a new group for elements \lstinline|p|-equivalent to \lstinline|x| using the call to \lstinline|Option.getD|, which returns the first element if it was equal to \lstinline|some x| and otherwise returns the second element if it was equal to \lstinline|none|. Then, we add \lstinline|x| itself to the group and re-insert it into our mutable \lstinline|result| map. At the end, we return the accumulated \lstinline|result| map.
 
 \subsubsection{Imperative DSL}
-This piece of imperative code is implemented as a DSL, i.e. the imperative code is translated to a functional equivalent.
+This piece of imperative code is implemented as a DSL, i.e.\ the imperative code is translated to a functional equivalent.
 
 One may reasonably wonder why one would ever use a purely functional language to then write imperative code, translate it back to purely functional code, only to then compile the result to imperative machine code. But since Lean 4 is also an interactive theorem prover, the answer is simple: Imperative programming can be convenient, but it is easier to use a purely functional programming language for all the domains of proof, specification and writing programs at once, since all the computational effects are already neatly packed away. 
 
@@ -63,8 +63,8 @@ The central idea of DTT is that types are allowed to depend on terms. In most ty
 
 There are several mechanisms required to make this work: 
 \begin{enumerate}
-	\item In a quantified type $\forall x.\ \tau(x)$, the variable $x$ is allowed to range over terms of a type (e.g. $x \triangleq n : \mathbb{N}$), not just types themselves as is the case in languages that support polymorphic functions $\forall \alpha.\ \tau(\alpha)$.
-	\item Terms in types can be reduced with the usual reduction rules of lambda calculus, e.g. $(\forall x.\ \tau((\lambda y.\ y)\ x)) \rightsquigarrow (\forall x.\ \tau(x))$.
+	\item In a quantified type $\forall x.\ \tau(x)$, the variable $x$ is allowed to range over terms of a type (e.g.\ $x \triangleq n : \mathbb{N}$), not just types themselves as is the case in languages that support polymorphic functions $\forall \alpha.\ \tau(\alpha)$.
+	\item Terms in types can be reduced with the usual reduction rules of lambda calculus, e.g.\ $(\forall x.\ \tau((\lambda y.\ y)\ x)) \rightsquigarrow (\forall x.\ \tau(x))$.
 	\item Support for inductive type families, which are essentially algebraic data types where each constructor creates a term in a type that can be parametrized by other terms. For example, we might declare a type $\lambda \alpha : \mathrm{Type}.\ \lambda n : \mathbb{N}.\ \mathrm{Vec}\ \alpha\ n$ for lists over a type $\alpha$ of size $n$ with constructors $\mathrm{nil} : \mathrm{Vec}\ \alpha\ 0$ and $\mathrm{cons} : \forall n : \mathbb{N}.\ \alpha \to \mathrm{Vec}\ \alpha\ n \to \mathrm{Vec}\ \alpha\ (n+1)$. Each inductive type family also yields a recursion principle that allows for pattern matching and using recursion on the value of a type to compute an accumulate value.
 \end{enumerate}
 
@@ -73,7 +73,7 @@ In addition to $\forall x : \tau_1.\ \tau_2(x)$, dependent type theories also al
 \subsubsection{Propositions}
 For convenience, Lean's type theory also supports a separate type universe of propositions $\mathbb{P}$, the terms of which are types $p : \mathbb{P}$ with proof terms $h : p$ witnessing the truth of the proposition $p$. For example, if $\mathrm{refl} : \forall x.\ x = x$, we have $(\mathrm{refl}\ n) : (n = n) : \mathbb{P}$ and $(\mathrm{refl}\ n) : (n + 1 - 1 = n) : \mathbb{P}$ for $n : \mathbb{N}$, as $n + 1 - 1 \rightsquigarrow n$ by reduction. Meanwhile, there is no term $h : (n = n + 1) : \mathbb{P}$. For less trivial propositions, we use the recursion principles of inductive type families, which become induction principles if the accumulated value is a proposition $p : \mathbb{P}$. 
 
-What distinguishes propositions $p : \mathbb{P}$ from other types is that $\mathbb{P}$ is impredicative and proof-irrelevant, i.e. whenever we quantify over a proposition $p : \mathbb{P}$ s.t. $\forall x.\ p$, the resulting type is again a proposition, and for proofs $h_1, h_2 : p$, we have $h_1 = h_2$. In other words, propositions are contained to $\mathbb{P}$ and all proofs of a proposition are considered equal, i.e. only their existence is relevant, not the concrete content of the proof. Hence, proofs are inherently non-computational; since the content of a proof is irrelevant, it can be erased. These two features allow Lean to introduce additional non-computational classical axioms into its universe of propositions $\mathbb{P}$, most prominently the law of the excluded middle $p \lor \lnot p$.
+What distinguishes propositions $p : \mathbb{P}$ from other types is that $\mathbb{P}$ is impredicative and proof-irrelevant, i.e.\ whenever we quantify over a proposition $p : \mathbb{P}$ s.t.\ $\forall x.\ p$, the resulting type is again a proposition, and for proofs $h_1, h_2 : p$, we have $h_1 = h_2$. In other words, propositions are contained to $\mathbb{P}$ and all proofs of a proposition are considered equal, i.e.\ only their existence is relevant, not the concrete content of the proof. Hence, proofs are inherently non-computational; since the content of a proof is irrelevant, it can be erased. These two features allow Lean to introduce additional non-computational classical axioms into its universe of propositions $\mathbb{P}$, most prominently the law of the excluded middle $p \lor \lnot p$.
 
 \subsubsection{Combined power}
 Putting all of these mechanisms together yields a type theory powerful enough to declare types like $\mathrm{Vec}\ \alpha\ n$ and all the usual objects that are used in mathematics, as well as logical operators like $\cdot \land \cdot$, $\exists x.\ p(x)$, $\cdot = \cdot$ and even well-founded recursion. Additionally, the term language is strong enough to write arbitrary programs, as well as classical proofs within $\mathbb{P}$.
@@ -167,9 +167,77 @@ LeanType denotes arbitrary dependent types in the form of generic Lean expressio
 
 Code instructions can either be \icode{let} instructions, function definitions \icode{def} of type $\tau$, join point declarations \icode{jpdef} of type $\tau$, \icode{jmp} instructions that jump to a given join point with a given vector of arguments, \icode{case} or \icode{ret} instructions.
 
-After compiling Lean code to LCNF, the resulting LCNF code is simplified by many of the same optimizations that are applied to Lean code in the old compiler that works directly on Lean expressions. Near the end of the optimization phase, type dependencies and computationally irrelevant terms are erased and the resulting LCNF code can be converted to the pure IR. In the future, both the pure and the reference-counted IR will be replaced by a closely related LCNF-equivalent as well. 
+After compiling Lean code to LCNF, the resulting LCNF code is simplified by many of the same optimizations that are applied to Lean code in the old compiler that works directly on Lean expressions. Near the end of the optimization phase, type dependencies, computationally irrelevant terms and a few other types are heuristically erased and the resulting LCNF code can be converted to the pure IR. In the future, both the pure and the reference-counted IR will be replaced by a closely related LCNF-equivalent as well. 
 
-\section{Counting Immutable Beans}\label{sec:beans}
+\section{Destructive Updates}\label{sec:beans}
+In \cref{sec:irs}, we saw that the Lean 4 compiler inserts instructions \icode{let x := reset y} and \icode{let z := reuse x in ctorᵢ\ $\overline{\texttt{y}}$} when compiling the pure IR to the reference-counted IR. These instructions are used to perform so-called destructive updates: In a purely functional language, if a value is only referenced by a single function, then that function can safely update the value in-place without the mutation being observed by other functions, thus retaining both purity and efficiency. It is obvious that if we are using reference counting for garbage collection, then we can also use the reference count for performing destructive updates by checking that the reference count of the value is equal to 1.
+
+\subsubsection{Reset and reuse}
+But one important question remains: In a purely functional language, what constitutes an update? After all, there is no dedicated instruction that performs updates. To answer this question, \cite{ullrich_counting_2020} introduce something that they call ``the resurrection hypothesis'': Many values are used the last time just before a value of the same kind is created. This should be intuitive to most functional programmers, as functions that would otherwise mutate a value in an imperative language will instead create a new instance of the old value with the change applied to it in purely functional languages.
+
+As per \cite{ullrich_counting_2020}, the \icode{let x := reset y} instruction is inserted as early as possible when \icode{y} is not used any more for the remainder of the function and a corresponding \icode{let z := ctorᵢ\ $\overline{\texttt{y}}$} call of the same kind as \icode{y} exists later on in the same function. \icode{let z := reuse x in ctorᵢ\ $\overline{\texttt{y}}$} is used to replace the latter \icode{let z := ctorᵢ\ $\overline{\texttt{y}}$} call. Here, ``of the same kind'' means that both constructors occupy the same amount of memory.
+
+Semantically, \icode{let x := reset y} checks the reference count of \icode{y} and denotes in \icode{x} both \icode{y} itself and whether \icode{y} had a reference count equal to 1. Additionally, if the reference count is equal to 1, \icode{reset y} detaches the components of the soon-to-be-freed \icode{y} pre-emptively by decrementing the reference counts of the components of \icode{y}. \icode{reuse x in ctorᵢ\ $\overline{\texttt{y}}$} then checks \icode{x} and either updates the referenced memory in-place if the reference count was equal to 1 at the call to \icode{reset} or allocates new memory according to \icode{ctorᵢ\ $\overline{\texttt{y}}$}.
+
+The fact that there are two separate instructions for checking the reference count, detaching the components and performing the in-place update is crucial, as no destructive updates can be performed on the components of a value as long as the value itself is still alive. This is evidenced by the following example taken from \cite{ullrich_counting_2020}:\\
+\begin{ifcode}
+map f xs = case xs of
+  (ret xs)
+  (let x = proj₁ xs;
+   inc x;
+   let s = proj₂ xs;
+   inc s;
+   let w = reset xs;
+   let y = f x;
+   let ys = map f s;
+   let r = reuse w in ctor₂ y ys;
+   ret r)
+\end{ifcode}
+If \icode{reuse} was to check the reference count of \icode{xs}, then \icode{s} would have a reference count of 2: One reference from \icode{s} itself, and one from \icode{xs}, thus preventing further destructive updates in the recursive call to \icode{map}.
+
+\subsubsection{Updating values within values}
+The optimization above usually works if the functional code in question is written in a manner that is similar to clean imperative code, where old values are not used after updating them and references are not duplicated in such a manner that a mutation is observable in an entirely different part of the program. In fact, since this optimization also applies to code written with functional combinators like \lstinline|map| or \lstinline|filter|, even code that would otherwise be inefficient in imperative languages because explicit copies are created to maintain local purity can be optimized to be as fast as if it was written in an imperative manner. There are however some common exceptions to this rule, one of which we have already seen in detail in \cref{sec:lean4}:\\
+\begin{code}
+def Array.groupBy (p : α → α → Ordering) (xs : Array α)
+  : RBMap α (Array α) p := Id.run do
+  let mut result : RBMap α (Array α) p := RBMap.empty
+  for x in xs do
+    let group := Option.getD (RBMap.find? p result x) #[]
+    result := RBMap.insert p result x (Array.push group x)
+  return result
+\end{code}
+
+Here, after executing the line containing \lstinline|RBMap.find? p result x|, there can be two references to the array in \lstinline|group|: One from \lstinline|group| itself, and one within the red-black map \lstinline|result|. This precludes Lean from performing a destructive update in \lstinline|Array.push group x|, resulting in an expensive $\Theta(n)$-complexity copy of the whole array. Since this issue occurs every single loop iteration, our \lstinline|Array.groupBy| implementation is accidentally quadratic. Our imperative intuition lead us astray: if \lstinline|Array.push group x| was to update \lstinline|group| in-place, then this mutation would be observable in \lstinline|result|, but since we never observe it and immediately replace the reference to \lstinline|group| in \lstinline|result| using \lstinline|RBMap.insert p result x ...|, we consider the mutation safe. 
+
+The common solution to this issue is to introduce a function similar to the following for any type that can act as a container:\\
+\begin{code}
+def RBMap.update (p : α → α → Ordering) (map : RBMap α β p) 
+  (a : α) (f : β → β) : RBMap α β p :=
+  let x := RBMap.find? p map a
+  match x with
+  | Option.none   => map
+  | Option.some b => 
+    let map := RBMap.erase p map a
+    RBMap.insert p map a (f b)
+\end{code}
+
+\lstinline|match x with| uses pattern-matching on \lstinline|x|. After calling \lstinline|RBMap.find? p map a|, there are two references to the value in \lstinline|b|. Using \lstinline|RBMap.erase p map a|, the second reference is erased and \lstinline|b| can now be updated destructively in \lstinline|f|. Afterwards, the result is re-inserted. Using this function, we can now fix the performance bug in \lstinline|Array.groupBy| with the following implementation:\\
+\begin{code}
+def Array.groupBy (p : α → α → Ordering) (xs : Array α)
+  : RBMap α (Array α) p := Id.run do
+  let mut result : RBMap α (Array α) p := RBMap.empty
+  for x in xs do
+    if ! RBMap.contains p result x then
+      result := RBMap.insert p result x #[]
+    else
+      result := RBMap.update p result x 
+        (fun group => Array.push group x)
+  return result
+\end{code}
+
+\lstinline|(fun x => ...)| denotes a lambda expression. As we are using \lstinline|RBMap.update|, the \lstinline|group| corresponding to \lstinline|x| is updated in-place, and now our implementation has the time complexity that we would expect it to have.
+
+Situations akin to this one can occur for other types as well. We will discuss similar challenges related to containers that occur when ensuring referential uniqueness statically in \cref{sec:borrowingbackground}.
 
 \section{Linear Type Theory}\label{sec:ltt}
 \subsubsection{Substructural rules}
@@ -200,7 +268,7 @@ With \textsc{Dereliction} and \textsc{Promotion}, linear types make a guarantee 
 
 In a type system with \textsc{Dereliction}, linearity is unsuited to guarantee the referential uniqueness of a variable, as it may have been duplicated in the past, an issue that is acknowledged by \cite{wadler_is_1991}. For linear type systems where linearity is guaranteed from construction onwards, \cite{chirimar_reference_1996} prove that the linearity of a variable implies the uniqueness of the associated reference.
 
-Future linear type systems \citep{goos_observers_1992} \citep{atkey_syntax_2018} \citep{bernardy_linear_2018} \citep{brady_idris_2021} \citep{choudhury_graded_2021} \citep{li_linear_2022} \citep{spiwack_linearly_2022} always adopt one of these two approaches and either allow for a non-linear to linear coercion, or no coercion at all, thus cementing the idea of ``linearity'' referring to either ``always uniquely referenced'' or ``used linearly from this point onwards''. The latter can be made to act like the former by guaranteeing referential uniqueness through other means, e.g. by making every constructor of a certain type return a value of linear type, effectively turning referential uniqueness into a library design decision.
+Future linear type systems \citep{goos_observers_1992} \citep{atkey_syntax_2018} \citep{bernardy_linear_2018} \citep{brady_idris_2021} \citep{choudhury_graded_2021} \citep{li_linear_2022} \citep{spiwack_linearly_2022} always adopt one of these two approaches and either allow for a non-linear to linear coercion, or no coercion at all, thus cementing the idea of ``linearity'' referring to either ``always uniquely referenced'' or ``used linearly from this point onwards''. The latter can be made to act like the former by guaranteeing referential uniqueness through other means, e.g.\ by making every constructor of a certain type return a value of linear type, effectively turning referential uniqueness into a library design decision.
 
 To make the distinction between the two kinds of linear type systems clear, we will henceforth refer to linear type systems without any coercion between linear and non-linear values as ``invariably unique'' and type systems adopting \textsc{Dereliction} and \textsc{Promotion} as ``properly linear'', but still use the term ``linear'' to group the two of them together, as is often done in the literature since Wadler's first papers. See \cref{fig:wadler-properly-linear} for Wadler's properly linear type system and \cref{fig:wadler-invariably-unique} for his invariably unique type system.
 
@@ -223,19 +291,20 @@ The various applications of linear type theory include the following:
 \vspace*{\fill}
 \begin{mdframed}
 \begin{figure}[H]
-		\begin{mathpar}
-			$\inferrule[Var]{ }{x : \tau \vdash x : \tau}$ \hspace{1.5em}
-			$\inferrule[$\multimap$-Intro]{\Gamma, x : \tau_1 \vdash e : \tau_2}{\Gamma \vdash (1\ \lambda x : \tau_1.\ e) : \tau_1 \multimap \tau_2}$ \hspace{1.5em}
-			$\inferrule[$\multimap$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \multimap \tau_2 \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash (1\ e_1\ e_2) : \tau_2}$
-		\end{mathpar}
-		\begin{mathpar}
-			$\inferrule[Weaken]{\Gamma \vdash e : \tau \\ \tau'\ \mathrm{nonlinear}}{\Gamma, x : \tau' \vdash e : \tau}$ \hspace{1.5em}
-			$\inferrule[Contract]{\Gamma, x : \tau', x : \tau' \vdash e : \tau \\ \tau'\ \mathrm{nonlinear}}{\Gamma, x : \tau' \vdash e : \tau}$
-		\end{mathpar}
-		\begin{mathpar}
-			$\inferrule[$\to$-Intro]{\Gamma, x : \tau_1 \vdash e : \tau_2 \\ \Gamma\ \mathrm{nonlinear}}{\Gamma \vdash (!\ \lambda x : \tau_1.\ e) : \tau_1 \to \tau_2}$ \hspace{1.5em}
-			$\inferrule[$\to$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \to \tau_2 \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash (!\ e_1\ e_2) : \tau_2}$
-		\end{mathpar}
+	\vspace{-2em}
+	\begin{mathpar}
+		$\inferrule[Var]{ }{x : \tau \vdash x : \tau}$ \hspace{1.5em}
+		$\inferrule[$\multimap$-Intro]{\Gamma, x : \tau_1 \vdash e : \tau_2}{\Gamma \vdash (1\ \lambda x : \tau_1.\ e) : \tau_1 \multimap \tau_2}$ \hspace{1.5em}
+		$\inferrule[$\multimap$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \multimap \tau_2 \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash (1\ e_1\ e_2) : \tau_2}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[Weaken]{\Gamma \vdash e : \tau \\ \tau'\ \mathrm{nonlinear}}{\Gamma, x : \tau' \vdash e : \tau}$ \hspace{1.5em}
+		$\inferrule[Contract]{\Gamma, x : \tau', x : \tau' \vdash e : \tau \\ \tau'\ \mathrm{nonlinear}}{\Gamma, x : \tau' \vdash e : \tau}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\to$-Intro]{\Gamma, x : \tau_1 \vdash e : \tau_2 \\ \Gamma\ \mathrm{nonlinear}}{\Gamma \vdash (!\ \lambda x : \tau_1.\ e) : \tau_1 \to \tau_2}$ \hspace{1.5em}
+		$\inferrule[$\to$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \to \tau_2 \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash (!\ e_1\ e_2) : \tau_2}$
+	\end{mathpar}
 	\caption{Original linear type system from \cite{wadler_linear_1990} with separate linear and non-linear terms and types. $1$ denotes linear terms, $!$ denotes non-linear terms. ``nonlinear'' demands that the full type or context consists only of non-linear $\to$-types.}
 	\label{fig:wadler-original}
 \end{figure}
@@ -243,28 +312,29 @@ The various applications of linear type theory include the following:
 \vspace*{\fill}
 \begin{mdframed}
 \begin{figure}[H]
-		\begin{mathpar}
-			$\inferrule[Weaken]{\Gamma \vdash e : \tau}{\Gamma, x :\ !\tau' \vdash e : \tau}$ \hspace{1.5em}
-			$\inferrule[Contract]{\Gamma, x :\ !\tau', x :\ !\tau' \vdash e : \tau}{\Gamma, x :\ !\tau' \vdash e : \tau}$ \hspace{1.5em}
-			$\inferrule[Dereliction]{\Gamma, x : \tau_1 \vdash e : \tau_2}{\Gamma, x :\ !\tau_1 \vdash e : \tau_2}$ \hspace{1.5em}
-			$\inferrule[Promotion]{!\Gamma \vdash e : \tau}{!\Gamma \vdash e :\ !\tau}$ \hspace{1.5em}
-		\end{mathpar} 
-		\begin{mathpar}
-			$\inferrule[Var]{ }{x : \tau \vdash x : \tau}$ \hspace{1.5em}
-			$\inferrule[$\multimap$-Intro]{\Gamma, x : \tau_1 \vdash e : \tau_2}{\Gamma \vdash \lambda x : \tau_1.\ e : \tau_1 \multimap \tau_2}$ \hspace{1.5em}
-			$\inferrule[$\multimap$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \multimap \tau_2 \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash e_1\ e_2 : \tau_2}$
-		\end{mathpar}
-		\begin{mathpar}
-			$\inferrule[$\otimes$-Intro]{\Gamma_1 \vdash e_1 : \tau_1 \\ \Gamma_2 \vdash e_2 : \tau_2}{\Gamma_1, \Gamma_2 \vdash (e_1, e_2) : \tau_1 \otimes \tau_2}$ \hspace{1.5em}
-			$\inferrule[$\otimes$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \otimes \tau_2 \\ \Gamma_2, x : \tau_1, y : \tau_2 \vdash e_2 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ (x, y) \Rightarrow e_2 : \tau_3}$
-		\end{mathpar}
-		\begin{mathpar}
-			$\inferrule[$\oplus$-Intro-Left]{\Gamma \vdash e : \tau_1}{\Gamma \vdash \acode{left}\ e : \tau_1 \oplus \tau_2}$ \hspace{1.5em}
-			$\inferrule[$\oplus$-Intro-Right]{\Gamma \vdash e : \tau_2}{\Gamma \vdash \acode{right}\ e : \tau_1 \oplus \tau_2}$ 
-		\end{mathpar}
-		\begin{mathpar}
-			$\inferrule[$\oplus$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \oplus \tau_2 \\ \Gamma_2, x : \tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y : \tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ \acode{left}\ x \Rightarrow e_2;\ \acode{right}\ y \Rightarrow e_3 : \tau_3}$
-		\end{mathpar}
+	\vspace{-2em}
+	\begin{mathpar}
+		$\inferrule[Weaken]{\Gamma \vdash e : \tau}{\Gamma, x :\ !\tau' \vdash e : \tau}$ \hspace{1.5em}
+		$\inferrule[Contract]{\Gamma, x :\ !\tau', x :\ !\tau' \vdash e : \tau}{\Gamma, x :\ !\tau' \vdash e : \tau}$ \hspace{1.5em}
+		$\inferrule[Dereliction]{\Gamma, x : \tau_1 \vdash e : \tau_2}{\Gamma, x :\ !\tau_1 \vdash e : \tau_2}$ \hspace{1.5em}
+		$\inferrule[Promotion]{!\Gamma \vdash e : \tau}{!\Gamma \vdash e :\ !\tau}$ \hspace{1.5em}
+	\end{mathpar} 
+	\begin{mathpar}
+		$\inferrule[Var]{ }{x : \tau \vdash x : \tau}$ \hspace{1.5em}
+		$\inferrule[$\multimap$-Intro]{\Gamma, x : \tau_1 \vdash e : \tau_2}{\Gamma \vdash \lambda x : \tau_1.\ e : \tau_1 \multimap \tau_2}$ \hspace{1.5em}
+		$\inferrule[$\multimap$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \multimap \tau_2 \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash e_1\ e_2 : \tau_2}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\otimes$-Intro]{\Gamma_1 \vdash e_1 : \tau_1 \\ \Gamma_2 \vdash e_2 : \tau_2}{\Gamma_1, \Gamma_2 \vdash (e_1, e_2) : \tau_1 \otimes \tau_2}$ \hspace{1.5em}
+		$\inferrule[$\otimes$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \otimes \tau_2 \\ \Gamma_2, x : \tau_1, y : \tau_2 \vdash e_2 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ (x, y) \Rightarrow e_2 : \tau_3}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\oplus$-Intro-Left]{\Gamma \vdash e : \tau_1}{\Gamma \vdash \acode{left}\ e : \tau_1 \oplus \tau_2}$ \hspace{1.5em}
+		$\inferrule[$\oplus$-Intro-Right]{\Gamma \vdash e : \tau_2}{\Gamma \vdash \acode{right}\ e : \tau_1 \oplus \tau_2}$ 
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\oplus$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \oplus \tau_2 \\ \Gamma_2, x : \tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y : \tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ \acode{left}\ x \Rightarrow e_2;\ \acode{right}\ y \Rightarrow e_3 : \tau_3}$
+	\end{mathpar}
 	\caption{Properly linear type system from \cite{wadler_is_1991} with support for multiplicative product types ($\otimes$) and multiplicative sum types ($\oplus$).}
 	\label{fig:wadler-properly-linear}
 \end{figure}
@@ -275,41 +345,42 @@ The various applications of linear type theory include the following:
 \vspace*{\fill}
 \begin{mdframed}
 \begin{figure}[H]
-		\begin{mathpar}
-			$\inferrule[Weaken]{\Gamma \vdash e : \tau}{\Gamma, x :\ !\tau' \vdash e : \tau}$ \hspace{1.5em}
-			$\inferrule[Contract]{\Gamma, x :\ !\tau', x :\ !\tau' \vdash e : \tau}{\Gamma, x :\ !\tau' \vdash e : \tau}$ 
-		\end{mathpar} 
-		\begin{mathpar}
-			$\inferrule[Var]{ }{x : \tau \vdash x : \tau}$ \hspace{1.5em}
-			$\inferrule[$\multimap$-Intro]{\Gamma, x : \tau_1 \vdash e : \tau_2}{\Gamma \vdash \lambda x : \tau_1.\ e : \tau_1 \multimap \tau_2}$ \hspace{1.5em}
-			$\inferrule[$\multimap$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \multimap \tau_2 \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash e_1\ e_2 : \tau_2}$
-		\end{mathpar}
-		\begin{mathpar}
-			$\inferrule[$\otimes$-Intro]{\Gamma_1 \vdash e_1 : \tau_1 \\ \Gamma_2 \vdash e_2 : \tau_2}{\Gamma_1, \Gamma_2 \vdash (e_1, e_2) : \tau_1 \otimes \tau_2}$ \hspace{1.5em}
-			$\inferrule[$\otimes$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \otimes \tau_2 \\ \Gamma_2, x : \tau_1, y : \tau_2 \vdash e_2 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ (x, y) \Rightarrow e_2 : \tau_3}$
-		\end{mathpar}
-		\begin{mathpar}
-			$\inferrule[$\oplus$-Intro-Left]{\Gamma \vdash e : \tau_1}{\Gamma \vdash \acode{left}\ e : \tau_1 \oplus \tau_2}$ \hspace{1.5em}
-			$\inferrule[$\oplus$-Intro-Right]{\Gamma \vdash e : \tau_2}{\Gamma \vdash \acode{right}\ e : \tau_1 \oplus \tau_2}$ 
-		\end{mathpar}
-		\begin{mathpar}
-			$\inferrule[$\oplus$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \oplus \tau_2 \\ \Gamma_2, x : \tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y : \tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ \acode{left}\ x \Rightarrow e_2;\ \acode{right}\ y \Rightarrow e_3 : \tau_3}$
-		\end{mathpar}
-		\begin{mathpar}
-			$\inferrule[!-$\multimap$-Intro]{!\Gamma, x : \tau_1 \vdash e : \tau_2}{!\Gamma \vdash \lambda x : \tau_1.\ e :\ !(\tau_1 \multimap \tau_2)}$ \hspace{1.5em}
-			$\inferrule[!-$\multimap$-Elim]{\Gamma_1 \vdash e_1 :\ !(\tau_1 \multimap \tau_2) \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash e_1\ e_2 : \tau_2}$
-		\end{mathpar}
-		\begin{mathpar}
-			$\inferrule[!-$\otimes$-Intro]{\Gamma_1 \vdash e_1 :\ !\tau_1 \\ \Gamma_2 \vdash e_2 :\ !\tau_2}{\Gamma_1, \Gamma_2 \vdash (e_1, e_2) :\ !(!\tau_1 \otimes\ !\tau_2)}$ \hspace{1.5em}
-			$\inferrule[!-$\otimes$-Elim]{\Gamma_1 \vdash e_1 :\ !(!\tau_1 \otimes\ !\tau_2) \\ \Gamma_2, x :\ !\tau_1, y :\ !\tau_2 \vdash e_2 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ (x, y) \Rightarrow e_2 : \tau_3}$
-		\end{mathpar}
-		\begin{mathpar}
-			$\inferrule[!-$\oplus$-Intro-Left]{\Gamma \vdash e :\ !\tau_1}{\Gamma \vdash \acode{left}\ e :\ !(!\tau_1 \oplus\ !\tau_2)}$ \hspace{1.5em}
-			$\inferrule[!-$\oplus$-Intro-Right]{\Gamma \vdash e :\ !\tau_2}{\Gamma \vdash \acode{right}\ e :\ !(!\tau_1 \oplus\ !\tau_2)}$ 
-		\end{mathpar}
-		\begin{mathpar}
-			$\inferrule[!-$\oplus$-Elim]{\Gamma_1 \vdash e_1 :\ !(!\tau_1 \oplus\ !\tau_2) \\ \Gamma_2, x :\ !\tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y :\ !\tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ \acode{left}\ x \Rightarrow e_2;\ \acode{right}\ y \Rightarrow e_3 : \tau_3}$
-		\end{mathpar}
+	\vspace{-2em}
+	\begin{mathpar}
+		$\inferrule[Weaken]{\Gamma \vdash e : \tau}{\Gamma, x :\ !\tau' \vdash e : \tau}$ \hspace{1.5em}
+		$\inferrule[Contract]{\Gamma, x :\ !\tau', x :\ !\tau' \vdash e : \tau}{\Gamma, x :\ !\tau' \vdash e : \tau}$ 
+	\end{mathpar} 
+	\begin{mathpar}
+		$\inferrule[Var]{ }{x : \tau \vdash x : \tau}$ \hspace{1.5em}
+		$\inferrule[$\multimap$-Intro]{\Gamma, x : \tau_1 \vdash e : \tau_2}{\Gamma \vdash \lambda x : \tau_1.\ e : \tau_1 \multimap \tau_2}$ \hspace{1.5em}
+		$\inferrule[$\multimap$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \multimap \tau_2 \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash e_1\ e_2 : \tau_2}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\otimes$-Intro]{\Gamma_1 \vdash e_1 : \tau_1 \\ \Gamma_2 \vdash e_2 : \tau_2}{\Gamma_1, \Gamma_2 \vdash (e_1, e_2) : \tau_1 \otimes \tau_2}$ \hspace{1.5em}
+		$\inferrule[$\otimes$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \otimes \tau_2 \\ \Gamma_2, x : \tau_1, y : \tau_2 \vdash e_2 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ (x, y) \Rightarrow e_2 : \tau_3}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\oplus$-Intro-Left]{\Gamma \vdash e : \tau_1}{\Gamma \vdash \acode{left}\ e : \tau_1 \oplus \tau_2}$ \hspace{1.5em}
+		$\inferrule[$\oplus$-Intro-Right]{\Gamma \vdash e : \tau_2}{\Gamma \vdash \acode{right}\ e : \tau_1 \oplus \tau_2}$ 
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[$\oplus$-Elim]{\Gamma_1 \vdash e_1 : \tau_1 \oplus \tau_2 \\ \Gamma_2, x : \tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y : \tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ \acode{left}\ x \Rightarrow e_2;\ \acode{right}\ y \Rightarrow e_3 : \tau_3}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[!-$\multimap$-Intro]{!\Gamma, x : \tau_1 \vdash e : \tau_2}{!\Gamma \vdash \lambda x : \tau_1.\ e :\ !(\tau_1 \multimap \tau_2)}$ \hspace{1.5em}
+		$\inferrule[!-$\multimap$-Elim]{\Gamma_1 \vdash e_1 :\ !(\tau_1 \multimap \tau_2) \\ \Gamma_2 \vdash e_2 : \tau_1}{\Gamma_1, \Gamma_2 \vdash e_1\ e_2 : \tau_2}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[!-$\otimes$-Intro]{\Gamma_1 \vdash e_1 :\ !\tau_1 \\ \Gamma_2 \vdash e_2 :\ !\tau_2}{\Gamma_1, \Gamma_2 \vdash (e_1, e_2) :\ !(!\tau_1 \otimes\ !\tau_2)}$ \hspace{1.5em}
+		$\inferrule[!-$\otimes$-Elim]{\Gamma_1 \vdash e_1 :\ !(!\tau_1 \otimes\ !\tau_2) \\ \Gamma_2, x :\ !\tau_1, y :\ !\tau_2 \vdash e_2 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ (x, y) \Rightarrow e_2 : \tau_3}$
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[!-$\oplus$-Intro-Left]{\Gamma \vdash e :\ !\tau_1}{\Gamma \vdash \acode{left}\ e :\ !(!\tau_1 \oplus\ !\tau_2)}$ \hspace{1.5em}
+		$\inferrule[!-$\oplus$-Intro-Right]{\Gamma \vdash e :\ !\tau_2}{\Gamma \vdash \acode{right}\ e :\ !(!\tau_1 \oplus\ !\tau_2)}$ 
+	\end{mathpar}
+	\begin{mathpar}
+		$\inferrule[!-$\oplus$-Elim]{\Gamma_1 \vdash e_1 :\ !(!\tau_1 \oplus\ !\tau_2) \\ \Gamma_2, x :\ !\tau_1 \vdash e_2 : \tau_3 \\ \Gamma_2, y :\ !\tau_2 \vdash e_3 : \tau_3}{\Gamma_1, \Gamma_2 \vdash \acode{case}\ e_1\ \acode{of}\ \acode{left}\ x \Rightarrow e_2;\ \acode{right}\ y \Rightarrow e_3 : \tau_3}$
+	\end{mathpar}
 	\caption{Invariably unique type system from \cite{wadler_is_1991}.}
 	\label{fig:wadler-invariably-unique}
 \end{figure}
@@ -333,7 +404,7 @@ After this issue was left unsolved for a long time, \cite{lindley_i_2016} resolv
 
 Erased terms or types can only be used in other erased terms or types, and types are always erased. Since an erased term is not computationally relevant, we also do not need to count variable uses in erased terms. Finally, when a linear variable is used, it becomes erased, which justifies the use of $1$ to denote linear types and $0$ to denote erased types. 
 
-\textsc{Exchange} is only omitted for variables of type $0$. In \textsc{App}, since we do not need to count the uses of variables of type $0$, we can freely distribute variables of type $1$ and $\omega$ to either $\Gamma_1$ or $\Gamma_2$, but duplicate all variables of type $0$ in their given order to $\Gamma_1$ and $\Gamma_2$. In other words, both the technical and the semantic issue are resolved at once.
+\textsc{Exchange} is still omitted, but variables in the context that act as dependencies for other variables in the context are always guaranteed to be erased. In \textsc{App}, since we do not need to count the uses of variables of type $0$, we can freely distribute variables of type $1$ and $\omega$ to either $\Gamma_1$ or $\Gamma_2$, but duplicate all variables of type $0$ in their given order to $\Gamma_1$ and $\Gamma_2$. In other words, both the technical and the semantic issue are resolved at once.
 
 \subsubsection{Quantities instead of types}
 The implementations of QTT by \cite{lindley_i_2016} and \cite{atkey_syntax_2018} use an additional trick to make the description of the type theory more compact. 
@@ -360,19 +431,19 @@ Instead, both quantitative and linear type theories that use this trick and want
 
 \subsubsection{Applications}
 Quantitative type theory combines the benefits of linear type theory and dependent type theory, leading to far greater capabilities when specifying protocols for types \citep{brady_idris_2021}. The introduction of an erasure quantity to combine the two type theories also allows for finer-grained specification of terms that are not computationally relevant but would otherwise be expensive to compute \citep{brady_idris_2021}.
-
-\vspace*{12em} % sins have been committed
+\clearpage
+\topskip0pt
+\vspace*{\fill}
 \begin{mdframed}
 \begin{figure}[H]
+	\vspace{-2em}
 	\begin{mathpar}
 		\boxed{\Gamma \vdash} \hspace{1.5em}
 		$\inferrule[Empty]{ }{\emptyset \vdash}$ \hspace{1.5em}
 		$\inferrule[Extend]{\Gamma \vdash \\ 0\Gamma \vdash S :_0 \mathcal{U}}{\Gamma, x :_q S \vdash}$
 	\end{mathpar}\\
 	\begin{mathpar}
-		\boxed{\Gamma \vdash M :_\sigma S}
-	\end{mathpar}
-	\begin{mathpar}
+		\boxed{\Gamma \vdash M :_\sigma S} \hspace{1.5em}
 		$\inferrule[Var]{0\Gamma_1, x :_\sigma S, 0\Gamma_2 \vdash}{0\Gamma_1, x :_\sigma S, 0\Gamma_2 \vdash x :_\sigma S}$ \hspace{1.5em}
 		$\inferrule[Universe]{0\Gamma \vdash}{0\Gamma \vdash \mathcal{U} :_0 \mathcal{U}}$
 	\end{mathpar}
@@ -384,37 +455,29 @@ Quantitative type theory combines the benefits of linear type theory and depende
 		$\inferrule[$\to$-Intro]{\Gamma, x :_{\sigma q} S \vdash M :_\sigma T}{\Gamma \vdash (\lambda x :_q S.\ M) :_\sigma (x :_q S) \to T}$
 	\end{mathpar}
 	\begin{mathpar}
-		$\inferrule[$\to$-Elim$_0$]{\Gamma \vdash M :_\sigma (x :_q S) \to T \\ \sigma q = 0 \\ 0\Gamma \vdash N :_0 S}{\Gamma \vdash M\ N :_\sigma T}$
+		$\inferrule[$\to$-Elim$_1$]{\Gamma_1 \vdash M :_\sigma (x :_q S) \to T \\ \Gamma_2 \vdash N :_1 S}{\Gamma_1 + \sigma q \Gamma_2 \vdash M\ N :_\sigma T}$ \hspace{1.5em}
+		$\inferrule[$\to$-Elim$_0$]{\Gamma \vdash M :_\sigma (x :_q S) \to T \\\\ \sigma q = 0 \\ 0\Gamma \vdash N :_0 S}{\Gamma \vdash M\ N :_\sigma T}$
 	\end{mathpar}
 	\begin{mathpar}
-		$\inferrule[$\to$-Elim$_1$]{\Gamma_1 \vdash M :_\sigma (x :_q S) \to T \\ \Gamma_2 \vdash N :_1 S}{\Gamma_1 + \sigma q \Gamma_2 \vdash M\ N :_\sigma T}$
-	\end{mathpar}
-\end{figure}
-\begin{figure}[H]
-	\begin{mathpar}
-		$\inferrule[$\otimes$-Formation]{0\Gamma \vdash S :_0 \mathcal{U} \\ 0\Gamma, x :_0 S \vdash T :_0 \mathcal{U}}{0\Gamma \vdash (x :_q S) \otimes T :_0 \mathcal{U}}$
+		$\inferrule[$\otimes$-Formation]{0\Gamma \vdash S :_0 \mathcal{U} \\ 0\Gamma, x :_0 S \vdash T :_0 \mathcal{U}}{0\Gamma \vdash (x :_q S) \otimes T :_0 \mathcal{U}}$ \hspace{1.5em}
+		$\inferrule[$\otimes$-Intro$_1$]{\Gamma_1 \vdash M :_1 S \\ \Gamma_2 \vdash N :_\sigma T[M/x]}{\sigma q \Gamma_1 + \Gamma_2 \vdash (M, N) :_\sigma (x :_q S) \otimes T}$ 
 	\end{mathpar}
 	\begin{mathpar}
 		$\inferrule[$\otimes$-Intro$_0$]{\sigma q = 0 \\ 0\Gamma \vdash M :_0 S \\ \Gamma \vdash N :_\sigma T[M/x]}{\Gamma \vdash (M, N) :_\sigma (x :_q S) \otimes T}$
-	\end{mathpar}
-	\begin{mathpar}
-		$\inferrule[$\otimes$-Intro$_1$]{\Gamma_1 \vdash M :_1 S \\ \Gamma_2 \vdash N :_\sigma T[M/x]}{\sigma q \Gamma_1 + \Gamma_2 \vdash (M, N) :_\sigma (x :_q S) \otimes T}$
 	\end{mathpar}
 	\begin{mathpar}
 		$\inferrule[$\otimes$-Elim]{\Gamma_1 \vdash M :_\sigma (x :_q S) \otimes T \\ 0\Gamma_1, z :_0 (x :_q S) \otimes T \vdash U :_0 \mathcal{U} \\ \Gamma_2, x :_{\sigma q} S, y :_\sigma T \vdash N :_\sigma U[(x, y)/z]}{\Gamma_1 + \Gamma_2 \vdash \acode{let}_{(x\,:_q\,S) \otimes T}\ z@(x, y) = M\ \acode{in}_U\ N :_\sigma U[M/z]}$
 	\end{mathpar}
 	\begin{mathpar}
 		$\inferrule[$\mathbb{1}$-Formation]{0\Gamma \vdash}{0\Gamma \vdash \mathbb{1} :_0 \mathcal{U}}$ \hspace{1.5em}
-		$\inferrule[$\mathbb{1}$-Intro]{0\Gamma \vdash}{0\Gamma \vdash () :_\sigma \mathbb{1}}$
-	\end{mathpar}
-	\begin{mathpar}
-		$\inferrule[$\mathbb{1}$-Elim]{\Gamma_1 \vdash M :_\sigma \mathbb{1} \\ 0\Gamma_1, x :_0 \mathbb{1} \vdash S :_0 \mathcal{U} \\ \Gamma_2 \vdash N :_\sigma S[()/x]}{\Gamma_1 + \Gamma_2 \vdash \acode{let}_\mathbb{1}\ x@() = M\ \acode{in}_S\ N :_\sigma S[M/x]}$
+		$\inferrule[$\mathbb{1}$-Intro]{0\Gamma \vdash}{0\Gamma \vdash () :_\sigma \mathbb{1}}$ \hspace{1.5em}
+		$\inferrule[$\mathbb{1}$-Elim]{\Gamma_1 \vdash M :_\sigma \mathbb{1} \\\\ 0\Gamma_1, x :_0 \mathbb{1} \vdash S :_0 \mathcal{U} \\ \Gamma_2 \vdash N :_\sigma S[()/x]}{\Gamma_1 + \Gamma_2 \vdash \acode{let}_\mathbb{1}\ x@() = M\ \acode{in}_S\ N :_\sigma S[M/x]}$
 	\end{mathpar}
 	\caption{Quantitative type theory as described by \cite{svoboda_additive_2021} and inspired by \cite{atkey_syntax_2018}. Features a single type universe $\mathcal{U}$. $\rightsquigarrow$ denotes reduction. Quantities $q \in \{0, 1, \omega\}$ satisfy $p + q = q + p$, $0 + q = q$, $\omega + q = \omega$, $1 + 1 = \omega$, $p q = q p$, $0q = 0$, $1q = q$ and $\omega \omega = \omega$.}
 	\label{fig:qtt}
 \end{figure}
 \end{mdframed}
-\FloatBarrier
+\vspace*{\fill}
 \clearpage
 
 \section{Uniqueness Type Theory}\label{sec:uniqueness}
@@ -441,9 +504,9 @@ In uniqueness type systems, there are a number of challenges that do not appear 
 
 \paragraph{Unique types within shared types} The first is that types are inherently less composable. In properly linear type theory, non-linear and linear types can be mixed freely, as long as the provided resources are present to create them. For example, $!(\tau_1 \otimes \tau_2)$ is just a non-linear product, whereas $(!\tau_1) \otimes \tau_2$ is a linear product where the first type is non-linear. 
 
-If, on the other hand, the type system is invariably unique and $\tau_1$ is linear, then the former example $!(\tau_1 \otimes \tau_2)$ is malformed, as deconstructing the product and obtaining the linear $\tau_1$ will not actually yield us a guarantee that the corresponding value has not been shared in the past, as e.g. the product could have been shared. 
+If, on the other hand, the type system is invariably unique and $\tau_1$ is linear, then the former example $!(\tau_1 \otimes \tau_2)$ is malformed, as deconstructing the product and obtaining the linear $\tau_1$ will not actually yield us a guarantee that the corresponding value has not been shared in the past, as e.g.\ the product could have been shared. 
 
-Hence, we must enforce that non-linear or non-unique types cannot contain linear or unique types. In invariably unique type systems, e.g. Wadler's steadfast linear types from \cite{wadler_is_1991}, the answer is usually to enforce this invariant when constructing a value. For example, constructing $!(\tau_1 \otimes \tau_2)$ becomes possible only when both $\tau_1$ and $\tau_2$ are non-linear.
+Hence, we must enforce that non-linear or non-unique types cannot contain linear or unique types. In invariably unique type systems, e.g.\ Wadler's steadfast linear types from \cite{wadler_is_1991}, the answer is usually to enforce this invariant when constructing a value. For example, constructing $!(\tau_1 \otimes \tau_2)$ becomes possible only when both $\tau_1$ and $\tau_2$ are non-linear.
 
 With uniqueness types, the situation is unfortunately more complicated: If it is possible to discard the uniqueness of a value, then the invariant that non-unique types cannot contain unique types does not just need to be enforced at construction, but after discarding the uniqueness of a value as well. 
 
@@ -460,10 +523,11 @@ In a uniqueness type system, this situation is again much more complicated becau
 The trick described at the end of \cref{sec:qtt} that allows for specifying whether a value is linear or non-linear only on binders rests on the fact that there is a coercion from non-linear to linear values, so that a function $f : \tau_1 \multimap\ !\tau_2$ can be coerced to $f : \tau_1 \multimap \tau_2$, after which the amount of required $\tau_1$ is scaled up by the amount of $\tau_2$ resources needed in the context. In other words, uniqueness types are not ``quantitative'' in the sense that the intuitions for reasoning about amounts of resources do not apply to them.
 
 Instead, one approach to combine uniqueness types with dependent type theory is Graded Modal Dependent Type Theory (GRTT) \citep{moon_graded_2021}, a dependent type theory with a linearly typed substructural base that allows attaching generic modalities to types. \cite{sergey_linearity_2022} integrate uniqueness types into Granule \citep{orchard_quantitative_2019}, a non-dependently-typed precursor to GRTT. Unfortunately, their type system does not allow the use of unique types within other unique types, only within linear types. The uniqueness fragment of the type system can be found in \cref{fig:marshall-unique}.
-
-We also believe that it might be possible to take only the idea of an erasure attribute from QTT and use it to build a dependent type theory that includes uniqueness types, though this is out of scope for this thesis.
-
+\clearpage
+\topskip0pt
+\vspace*{\fill}
 \begin{mdframed}
+	\vspace{-2em}
 	\begin{figure}[H]
 		\begin{mathpar}
 			$\inferrule[Var]{ }{!\Gamma, x : \tau \vdash x : \tau}$ \hspace{1.5em}
@@ -493,6 +557,7 @@ We also believe that it might be possible to take only the idea of an erasure at
 		\label{fig:marshall-unique}
 	\end{figure}
 \end{mdframed}
+\vspace*{\fill}
 \clearpage
 
 \section{Borrowing}\label{sec:borrowingbackground}
@@ -500,7 +565,7 @@ Linear type theory, quantitative type theory and uniqueness type theory all have
 
 In most basic formulations of linear and uniqueness type theory, this is resolved by adjusting the encoding of linear and unique functions to manually thread the read-only reference through the program: The function $f : \tau_1 \multimap \tau_2 \multimap \tau_3$, where the second argument does not escape in $\tau_3$, becomes $f : \tau_1 \multimap \tau_2 \multimap \tau_2 \otimes \tau_3$. Unfortunately, while this encoding can always be used, it is inconvenient and affects both the type-level encoding and the term-level usage of most functions. 
 
-In order to alleviate this issue, many linear type theories implement a notion of ``borrowing'', i.e. the non-consumption of arguments of which all components are guaranteed not to escape. 
+In order to alleviate this issue, many linear type theories implement a notion of ``borrowing'', i.e\. the non-consumption of arguments of which all components are guaranteed not to escape. 
 
 \subsubsection{Implementations}
 There are essentially three classes of implementations of borrowing:
@@ -521,15 +586,24 @@ We feel that constraint systems are an interesting approach, but that as formula
 \subsubsection{Complex borrowing}
 Finally, linear references may not just get lost when passed as function arguments themselves, but when stored within a function argument as well. For example, in $\mathrm{fst} : \tau_1 \otimes \tau_2 \multimap \tau_1$, $\tau_1$ escapes, but $\tau_2$ is lost. Unfortunately, this issue is much more difficult to resolve, as we cannot retain our unique reference to $\tau_2$ without also retaining our unique reference to $\tau_1 \otimes \tau_2$, with which we will also retain our unique reference to $\tau_1$, a reference that is not unique anymore after application of $\mathrm{fst}$. 
 
-Inspired by Rust \citep{weiss_oxide_2021}, \cite{spiwack_linearly_2022} suggest introducing primitive ``lending'' functions that grant temporary read access into a type, for example as follows for a linear type \icode{MArray} that is allowed to contain other linear types:\\
+Inspired by Rust \citep{weiss_oxide_2021}, \cite{spiwack_linearly_2022} suggest introducing primitive ``lending'' functions that grant temporary read access into a type, for example as follows for a linear type \lstinline|MArray| that is allowed to contain other linear types:\\
 \begin{code}
-	lend : MArray α ⊸ !ℕ ⊸ (!α ⊸ β) ⊸ Array α ⊗ β
+lend : MArray α ⊸ !ℕ ⊸ (!α ⊸ β) ⊸ Array α ⊗ β
 \end{code}
 
-Here, the unique reference to the array is consumed by \icode{lend} and hence unavailable in the continuation of type \icode{!α ⊸ β}. \icode{!α} provides read-only access to the array value indexed by the argument of type \icode{!ℕ}. The constraint mechanism additionally ensures that the argument of type \icode{!α} cannot escape in \icode{!α}, as well as that the explicit threading of \icode{Array α} becomes implicit.
+Here, the unique reference to the array is consumed by \lstinline|lend| and hence unavailable in the continuation of type \lstinline|!α ⊸ β|. \lstinline|!α| provides read-only access to the array value indexed by the argument of type \lstinline|!ℕ|. The constraint mechanism additionally ensures that the argument of type \lstinline|!α| cannot escape in \lstinline|β|, as well as that the explicit threading of \lstinline|Array α| becomes implicit.
 
-For \icode{MArray}, \cite{spiwack_linearly_2022} define another complex borrowing mechanism inspired by Rust: A function \icode{split} allows slicing an array \icode{a} at an index \icode{i}, consuming the original array in the process and producing two linear slices \icode{x := a[0:i)} and \icode{y := a[i:len(a))}, plus a token which witnesses that \icode{x} and \icode{y} are slices of \icode{a}. Then, a function \icode{join} can efficiently put two such slices with an associated witness token back together.
+For \lstinline|MArray|, \cite{spiwack_linearly_2022} define another complex borrowing mechanism inspired by Rust: A function \lstinline|split| allows slicing an array \lstinline|a| at an index \lstinline|i|, consuming the original array in the process and producing two linear slices \lstinline|x := a[0:i)| and \lstinline|y := a[i:len(a))|, plus a token which witnesses that \lstinline|x| and \lstinline|y| are slices of \lstinline|a|. Then, a function \lstinline|join| can efficiently put two such slices with an associated witness token back together. Using continuations, we could also again define a lending primitive similar to the following and separately ensure that both arguments of type \lstinline|!(Array α)| do not escape in \lstinline|β|:\\
+\begin{code}
+lendSlices : Array α ⊸ !ℕ ⊸ (!(Array α) ⊸ !(Array α) ⊸ β) 
+  ⊸ Array α ⊗ β
+\end{code}
 
 Primitive dedicated borrowing operations can be defined for many other types as well. We will not touch on this form of borrowing in this thesis and will instead focus on the simpler notion of borrowing function arguments themselves.
+
+\subsubsection{Updating values within values}
+In \cref{sec:beans}, we saw that performing destructive updates on values within containers can be problematic for Lean's destructive update mechanism as well. So far, we have only discussed approaches that grant read access to values within containers, but what about write access?
+
+It turns out that granting write access to single elements is rather straight-forward and can be implemented in a similar manner as we did in \cref{sec:beans}. For arrays and a linear type \lstinline|α|, we could define a primitive function \lstinline|swap : Array α ⊸ !ℕ ⊸ α ⊸ α| that swaps out an element in the array with another and will hence retain the linearity of both. Using this primitive, we can define \lstinline|update : Array α ⊸ α ⊸ !ℕ ⊸ (α ⊸ α) ⊸ Array α|, where the second argument is a default value that is swapped into the array while the function of type \lstinline|(α ⊸ α)| is applied. On the other hand, implementing an efficient slicing primitive would be more difficult, as there is no guarantee that two sub-arrays can be efficiently rejoined without a token witnessing this. The Lean 4 destructive update mechanism struggles with this issue, too.
 
 \section{Abstract Interpretation}
