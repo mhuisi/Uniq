@@ -158,9 +158,6 @@ namespace Types
   def AttrType.isShared  : AttrType → Bool := (·.attr == .shared)
   def AttrType.isUnique  : AttrType → Bool := (·.attr == .unique)
 
-  def AttrType.attrApplicableTo (a b : Types.AttrType) : Bool :=
-    a.isTypeVar || b.isTypeVar || a.isUnique || a.isShared && b.isShared
-
   def mergeUnifiedVars (a b : Lean.RBMap Var AttrType compare) : Option (Lean.RBMap Var AttrType compare) := do
     let mut r := a
     for ⟨var, type⟩ in b do
@@ -168,9 +165,7 @@ namespace Types
       r := r.insert var type
     return r
 
-  partial def AttrType.unifyWith (a b : Types.AttrType) : Option (Lean.RBMap Var AttrType compare) :=  do
-    if !attrApplicableTo a b then
-      .none
+  partial def AttrType.unifyWith (a b : Types.AttrType) : Option (Lean.RBMap Var AttrType compare) := do
     match a, b with
     | a, .typeVar varB =>
       return Lean.RBMap.ofList [(varB, a)]
@@ -181,7 +176,7 @@ namespace Types
       -- we will be fine if we just check the applicability of the fully substituted
       -- types again afterwards.
       return Lean.RBMap.empty
-    | .erased _, b => erasedApplicableToModOuterAttr b
+    | .erased _, _ => return Lean.RBMap.empty
     | _, .erased _ => return Lean.RBMap.empty
     | .adt _ nameA argsA, .adt _ nameB argsB =>
       guard <| nameA == nameB && argsA.size == argsB.size
@@ -196,12 +191,6 @@ namespace Types
         r ← mergeUnifiedVars r (← unifyWith paramA paramB)
       return r
     | _, _ => .none
-  where
-    erasedApplicableToModOuterAttr : Types.AttrType → Option (Lean.RBMap Var AttrType compare)
-      | .erased _ | .selfVar .. | .typeVar .. | .func .. => some Lean.RBMap.empty
-      | .adt _ _ args => do
-        guard <| args.all fun arg => arg.makeShared == arg
-        return Lean.RBMap.empty
 
   instance : Ord (Ctor × Proj) := lexOrd
 
@@ -209,6 +198,13 @@ namespace Types
   -- - the tree is not simply a leaf
   -- - only leafs contain typeVars
   abbrev ExternUniqueFieldsTree := Lean.PrefixTree (Ctor × Proj) (Option Var) compare
+
+  def externUniqueFieldsTreeOfArray (xs : Array (List (Ctor × Proj) × Option Var)) 
+    : ExternUniqueFieldsTree := Id.run do
+    let mut tree := Lean.PrefixTree.empty
+    for ⟨path, typeVar?⟩ in xs do
+      tree := tree.insert path typeVar?
+    return tree
 
   inductive ExternUniqueFieldResult
     | unique

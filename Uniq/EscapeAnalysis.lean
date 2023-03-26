@@ -1,5 +1,20 @@
 import Uniq.SCC
 
+instance [Ord α] : BEq (Lean.RBTree α compare) where
+  beq a b := a.all b.contains && b.all a.contains
+
+def Lean.RBTree.map [Ord α] [Ord β] (t : Lean.RBTree α compare) (f : α → β) : Lean.RBTree β compare :=
+  t.toArray.map f |> .fromArray (cmp := compare)
+
+def Lean.RBTree.filter [Ord α] (t : Lean.RBTree α compare) (p : α → Bool) : Lean.RBTree α compare :=
+  t.toArray.filter p |> .fromArray (cmp := compare)
+
+def Lean.RBTree.filterMap [Ord α] [Ord β] (t : Lean.RBTree α compare) (f : α → Option β) : Lean.RBTree β compare :=
+  t.toArray.filterMap f |> .fromArray (cmp := compare)
+
+instance [Ord α] [ToString α] : ToString (Lean.RBTree α compare) where
+  toString t := toString <| t.toArray
+
 namespace IR.EscapeAnalysis
   inductive Tag where
     | const (c : Const)
@@ -29,11 +44,24 @@ namespace IR.EscapeAnalysis
       | .app => s!"app"
       | .param idx => s!"param {idx}"
 
+  instance : Ord (List (Ctor × Proj)) where
+    compare := compareLists
+
+  def compareOption [Ord α] (x? y? : Option α) : Ordering :=
+    match x?, y? with
+    | none,     none   => .eq
+    | none,    .some _ => .lt
+    | .some _, none    => .gt
+    | .some x, .some y => compare x y
+
+  instance [Ord α] : Ord (Option α) where
+    compare := compareOption
+
   structure Escapee where
     var         : Var
     field       : List (Ctor × Proj)
     tag?        : Option (List Tag)
-    deriving BEq, Inhabited
+    deriving BEq, Inhabited, Ord
 
   def longestCommonPrefix [BEq α] (xs ys : List α) : List α :=
     xs.zip ys |>.filter (fun (x, y) => x == y) |>.map (·.1)
@@ -44,7 +72,7 @@ namespace IR.EscapeAnalysis
 
   structure State where
     program     : Program
-    funEscapees : Lean.RBMap Const (Array Escapee) compare
+    funEscapees : Lean.RBMap Const (Lean.RBTree Escapee compare) compare
 
   def mkNonDerivedEscapee (var : Var) (field : List (Ctor × Proj)) : Escapee :=
     ⟨var, field, none⟩
@@ -53,20 +81,20 @@ namespace IR.EscapeAnalysis
     ⟨var, field, previous.tag?⟩
 
   instance : ToString Escapee where
-    toString e := s!"{e.var}_{e.field}"
+    toString e := s!"{e.var}_{e.field}@{e.tag?}"
 
   def Escapee.subsumes (y y' : Escapee) : Bool :=
     y == y' && y.field.isPrefixOf y'.field
 
-  def convertParamEscapeesToArgEscapees (tag : List Tag) (paramEscapees : Array Escapee) (args : Array Var) : Array Escapee :=
+  def convertParamEscapeesToArgEscapees (tag : List Tag) (paramEscapees : Lean.RBTree Escapee compare) (args : Array Var) : Lean.RBTree Escapee compare :=
     paramEscapees.map fun y =>
       let argIdx : Nat := y.var -- param vars are [0, |arity|)
       { y with var := args[argIdx]!, tag? := some (.param argIdx :: tag) }
 
-  def filterSubsumed (escapees : Array Escapee) : Array Escapee :=
+  def filterSubsumed (escapees : Lean.RBTree Escapee compare) : Lean.RBTree Escapee compare :=
     escapees.filter fun y => escapees.all fun y' => y == y' || ! y'.subsumes y
 
-  def groupEscapeesByTag (escapees : Array Escapee) : Lean.RBMap (List Tag) (List Escapee) compare := Id.run do
+  def groupEscapeesByTag (escapees : Lean.RBTree Escapee compare) : Lean.RBMap (List Tag) (List Escapee) compare := Id.run do
     let mut r := Lean.mkRBMap _ _ _
     for escapee in escapees do
       if let some tag := escapee.tag? then
@@ -74,48 +102,48 @@ namespace IR.EscapeAnalysis
         r := r.insert tag (escapee :: acc)
     return r
 
-  def collapseSameTags (escapees : Array Escapee) : Array Escapee := Id.run do
+  def collapseSameTags (escapees : Lean.RBTree Escapee compare) : Lean.RBTree Escapee compare := Id.run do
     let escapeesByTag := groupEscapeesByTag escapees
     let mut r := escapees.filter (·.tag?.isNone)
     for ⟨_, escapees⟩ in escapeesByTag do
       match escapees with
-      | [x] => r := r.push x
-      | [x, y] => r := r.push (x.collapse y)
+      | [x] => r := r.insert x
+      | [x, y] => r := r.insert (x.collapse y)
       | _ => panic! "error: more than two escapees with the same tag"
     return r
 
-  def filterDead (escapees : Array Escapee) (arity : Nat) : Array Escapee :=
+  def filterDead (escapees : Lean.RBTree Escapee compare) (arity : Nat) : Lean.RBTree Escapee compare :=
     escapees.filter fun escapee =>
       let var : Nat := escapee.var
       var < arity
 
-  def State.appEscapees (s : State) (c : Const) (args : Array Var) (tag : List Tag) : Array Escapee :=
+  def State.appEscapees (s : State) (c : Const) (args : Array Var) (tag : List Tag) : Lean.RBTree Escapee compare :=
     match s.funEscapees.find? c, s.program.find? c with
     | some escapees, _ =>
       convertParamEscapeesToArgEscapees tag escapees args
     | none, none => -- extern function without escapee decl; all args are assumed to escape
-      args.map (mkNonDerivedEscapee · [])
+      .fromArray (cmp := compare) <| args.map (mkNonDerivedEscapee · [])
     | none, some _ => -- non-extern function that we haven't looked at yet; use the bottom element
-      #[]
+      .empty
 
-  partial def State.fnBodyEscapees (s : State) (tag : List Tag) (body : FnBody) : Array Escapee :=
+  partial def State.fnBodyEscapees (s : State) (tag : List Tag) (body : FnBody) : Lean.RBTree Escapee compare :=
     match body with
-    | FnBody.ret x => #[mkNonDerivedEscapee x []]
+    | FnBody.ret x => .fromArray #[mkNonDerivedEscapee x []] compare
     | FnBody.case _ cases => Id.run do
-      let mut r := #[]
+      let mut r := .empty
       for i in [0:cases.size] do
         let escapees := s.fnBodyEscapees (.case i :: tag) cases[i]!
-        r := r ++ escapees
+        r := r.union escapees
       return r
     | FnBody.case' x cases => Id.run do
-      let mut r := #[]
+      let mut r := .empty
       for i in [0:cases.size] do
         let ⟨ctor, args, F⟩ := cases[i]!
         let FEscapees := s.fnBodyEscapees (.case i :: tag) F
-        let fieldEscapees : Array Escapee := FEscapees.filterMap fun y => do
+        let fieldEscapees : Lean.RBTree Escapee compare := FEscapees.filterMap fun y => do
           let proj ← args.indexOf? y.var
           mkDerivedEscapee y x ((ctor, proj.val) :: y.field)
-        r := r ++ FEscapees ++ fieldEscapees
+        r := r.union FEscapees |>.union fieldEscapees
       return r
     | FnBody.«let» x expr F =>
       let tag :=
@@ -126,18 +154,18 @@ namespace IR.EscapeAnalysis
       let FEscapees := s.fnBodyEscapees tag F
       let exprEscapees :=
         if ! FEscapees.any (·.var == x) then
-          #[]
+          .empty
         else
           match expr with
           | Expr.app c args =>
             s.appEscapees c args tag
           | Expr.papp _ args =>
-            args.map fun arg => mkNonDerivedEscapee arg []
+            .fromArray (cmp := compare) <| args.map fun arg => mkNonDerivedEscapee arg []
           | Expr.vapp y z =>
-            #[mkNonDerivedEscapee y [], mkNonDerivedEscapee z []]
+            .fromArray (cmp := compare) <| #[mkNonDerivedEscapee y [], mkNonDerivedEscapee z []]
           | Expr.ctor _ _ ctor args =>
             if FEscapees.any fun e => e.var == x && e.field == [] then
-              args.map fun arg => mkNonDerivedEscapee arg []
+              .fromArray (cmp := compare) <| args.map fun arg => mkNonDerivedEscapee arg []
             else
               FEscapees.filter (·.var == x) |>.filterMap fun y => do
                 let field := y.field.head!
@@ -148,12 +176,15 @@ namespace IR.EscapeAnalysis
           | Expr.proj ctor proj y =>
             FEscapees.filter (·.var == x) |>.map fun escapee =>
               mkDerivedEscapee escapee y ((ctor, proj) :: escapee.field)
-      FEscapees ++ exprEscapees
+      FEscapees.union exprEscapees
 
   abbrev ExternEscapeeMap := Lean.RBMap Const (Array Escapee) compare
 
   partial def run (p : Program) (externEscapees : ExternEscapeeMap) (sccs : Lean.RBMap Const SCC compare) : Lean.RBMap Const (Array Escapee) compare := Id.run do
-    let mut s := State.mk p externEscapees
+    let mut externEscapees' := .empty
+    for ⟨c, escapees⟩ in externEscapees do
+      externEscapees' := externEscapees'.insert c (.fromArray escapees compare)
+    let mut s := State.mk p externEscapees'
     for (_, scc) in SCC.sccsInReverseTopologicalSort sccs do
       let mut stateChanged := true
       while stateChanged do
@@ -169,11 +200,14 @@ namespace IR.EscapeAnalysis
           if lastState?.isNone || lastState?.get! != result then
             s := { s with funEscapees := s.funEscapees.insert current result }
             stateChanged := true
-    return s.funEscapees
+    let mut funEscapees := .empty
+    for ⟨c, escapees⟩ in s.funEscapees do
+      funEscapees := funEscapees.insert c (escapees.toArray)
+    return funEscapees
 
-  section List_get
+  section Test.List_get
     set_option trace.Compiler.result true in
-    def List.get? (xs : List α) (i : Nat) : Option α :=
+    def List_get? (xs : List α) (i : Nat) : Option α :=
       match xs with
       | [] => none
       | x :: xs =>
@@ -182,7 +216,7 @@ namespace IR.EscapeAnalysis
         | false => xs.get? i.pred
 
     /-
-    def IR.EscapeAnalysis.List.get?._redArg xs i : Option lcErased :=
+    def IR.EscapeAnalysis.List_get?._redArg xs i : Option lcErased :=
       cases xs : Option lcErased
       | List.nil =>
         let _x.1 := none _;
@@ -245,6 +279,5 @@ namespace IR.EscapeAnalysis
 
     -- {0: #[0_[(1, 0)], 0_[(1, 1)]];}
     #eval IO.println <| run program (Lean.mkRBMap _ _ _) (IR.SCC.computeSCCs <| IR.CG.computeCallGraph <| program)
-
-  end List_get
+  end Test.List_get
 end IR.EscapeAnalysis

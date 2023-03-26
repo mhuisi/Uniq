@@ -28,19 +28,17 @@ In \cref{sec:implementation}, we implement a type checker for our type theory an
 	\item In addition to checking whether a given environment type-checks, our type checker should accumulate information about the scope in which a variable is unique. After translating this information back to LCNF, it can be used in subsequent optimizations, for example eliminating the reference count check described in \cref{sec:beans}.
 \end{enumerate}
 
+\section{Borrowing}
+In \cref{sec:borrowingbackground}, we saw that implementing more powerful borrowing mechanisms would be useful. In \cref{sec:examples}, we found that basing borrowing on an escape analysis is of limited utility when working with recursive types. Hence, in order to implement a user-friendly uniqueness type theory, it is essential that the topic of borrowing is re-visited in the future.
+
+\cite{spiwack_linearly_2022} and \cite{weiss_oxide_2021} may provide some guidance for implementing a borrowing mechanism that handles more cases than the one described in this thesis.
+
+Another possible approach would be to augment the escapees in \cref{sec:escapeanalysis} with a Kleene star and a union operator, or an ``any path`` operator, and have $\mathbb{B}_\cdot(\cdot, \cdot, \cdot)$ from \cref{sec:borrowing} generate patterns that describe the uniqueness of the fields of an algebraic data type. Then, checking whether any unique fields escape amounts to checking whether the intersection of these patterns is nonempty.
+
 \section{Higher-Order Functions}
 We have discussed the topic of higher-order functions in uniqueness type systems at length in \cref{sec:uniqueness} and \cref{sec:hof}, but chose to disregard uniqueness of functions for now in \cref{sec:types} by assuming every higher-order function as shared. 
 
 This situation is far from optimal because Lean code uses higher-order functions for type classes, monadic code, as well as tricks that guarantee uniqueness for unique values within other unique values, like the \lstinline|update| trick discussed in \cref{sec:beans}. 
-
-If we could use uniqueness annotations in type classes, defining the following classes that provide extra control over uniqueness would be possible:\\
-\begin{code}
-class Copyable (α) where
-  copy : *α → *(*α × *α)
-  
-class LawfulCopyable (α) extends Copyable α where
-  law : copy = (fun x => (x, x))
-\end{code}
 
 As discussed in \cref{sec:hof}, we believe that the approach that deleverages the uniqueness of values in a function closure is the most viable, though it requires a change to the runtime in that higher-order functions need to store two function pointers as opposed to just one. Additionally, several other components in \cref{sec:theory} must be adjusted as well, as subtyping must now account for co- and contravariant type parameters and propagation must be capable of propagating through higher-order functions. Similarly, borrowing most be adjusted with unique functions in mind.
 

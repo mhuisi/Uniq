@@ -1,5 +1,4 @@
 \chapter{Design Space Exploration}\label{sec:designspace}
-
 In this chapter, we will explore possible design decisions with the goal of guaranteeing efficient in-place updates. First, we will evaluate linear type theory, quantitative type theory and uniqueness type theory, and argue why we decide for the latter. Second, we will discuss the dimensions in the design space of uniqueness type systems.
 
 \section{Substructural Framework}
@@ -107,6 +106,6 @@ Instead, for our type system described in \cref{sec:theory}, we decide that fiel
 \subsection{Borrowing}
 As discussed in \cref{sec:borrowingbackground}, most implementations of borrowing use a form of type-driven escape analysis. We think that introducing extra attributes like observer-types into the type system that users need to keep accurate track of in order to be able to access borrowing is too much of an annotational burden.
 
-Instead, we will make use of the fact that escape analyses are very local in nature; whether a variable escapes or not can be decided by following the data flow of the variable from the start of the function to the return value. Hence, we implement an abstract interpretation based data flow analysis in \cref{sec:borrowing}. Due to the inherent locality of the analysis, we will not need any type information to run it.
+Instead, we will make use of the fact that escape analyses are very local in nature; whether a variable escapes or not can be decided by following the data flow of the variable from the start of the function to the return value. Hence, we implement a data flow analysis \cite{allen_program_1976} in \cref{sec:borrowing}. Due to the inherent locality of the analysis, we will not need any type information to run it.
 
 While we will not touch on it further, it is worth pointing out that adding extra annotations describing whether a function parameter is borrowed may still be a good idea for maintenance purposes, despite the fact that we can compute this information. When integrating our type system with Lean 4, it may hence be a good idea to add these annotations as well.

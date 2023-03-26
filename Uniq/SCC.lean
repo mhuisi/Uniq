@@ -143,5 +143,7 @@ namespace IR.SCC
     let ⟨_, ⟨_, sorted⟩⟩ := StateT.run loopRoots ⟨Lean.mkRBTree _ _, []⟩
     sorted.toArray.reverse
 
-  #eval IO.println <| sccsInReverseTopologicalSort <| computeSCCs <| computeCallGraph <| Lean.RBMap.ofList (.zip (List.range 7) [f0, f1, f2, f3, f4, f5, f6])
+  section Test
+    #eval IO.println <| sccsInReverseTopologicalSort <| computeSCCs <| computeCallGraph <| Lean.RBMap.ofList (.zip (List.range 7) [f0, f1, f2, f3, f4, f5, f6])
+  end Test
 end IR.SCC
