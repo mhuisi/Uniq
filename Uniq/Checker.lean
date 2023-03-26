@@ -345,18 +345,6 @@ namespace Test.List_map
   | []      => []
   | x :: xs => f x :: map f xs
 
-  /-
-  def Test.List_map.List.map._redArg f x.1 : List lcErased :=
-    cases x.1 : List lcErased
-    | List.nil =>
-      return x.1
-    | List.cons head.2 tail.3 =>
-      let _x.4 := f head.2;
-      let _x.5 := Test.List_map.List.map._redArg f tail.3;
-      let _x.6 := List.cons _ _x.4 _x.5;
-      return _x.6 
-  -/
-
   def map : Const := 0
 
   def iList : ADTName := 0

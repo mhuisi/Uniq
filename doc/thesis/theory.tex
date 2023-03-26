@@ -1,12 +1,10 @@
 \chapter{Formal Specification}\label{sec:theory}
-
 In this chapter, we will provide a formal description of our type theory and all the associated mechanisms required to make it work. \Cref{sec:types} introduces the syntactical material for our types and declares a number of commonly useful utility functions. \Cref{sec:ir} defines the syntax of the IR. In \cref{sec:escapeanalysis}, we specify an escape data flow analysis in order to implement the borrowing mechanism described in \cref{sec:borrowing}. Finally, \cref{sec:checking} provides the rules of our type theory.
 
 \section{Types}\label{sec:types}
 In all of the following sections, we use $[x]$ to denote a vector of elements $x$, otherwise commonly written as $\overline{x}$. We will often lift these brackets over an operation; e.g.\ the functional code $\mathrm{map}(\oplus, \mathrm{zip}([x], [y]))$ is written as $[x \oplus y]$ for vectors $[x]$ and $[y]$. In derivation rules, we also use $[x]$ for $x \in \mathbb{B}$ to mean $\forall x \in [x].\ x$.
 
 \subsection{Syntax}
-
 \newcommand{\dom}{\mathrm{dom}}
 \newcommand{\Attr}{\mathrm{Attr}}
 \newcommand{\ADT}{\mathrm{ADT}}
@@ -19,7 +17,6 @@ In all of the following sections, we use $[x]$ to denote a vector of elements $x
 \newcommand{\ret}{\mathrm{ret}}
 \newcommand{\ADTDecls}{\mathrm{ADTDecls}}
 \newcommand{\FunTypes}{\mathrm{FunTypes}}
-
 \begin{alignat*}{2}
   x, y, z &\in \Var \\
   i &\in \Ctor \\
@@ -54,10 +51,8 @@ Finally, $\delta_\tau$ provides the parameter- and return types for all function
 Throughout this chapter, we assume that functions $c$ have already been type-checked without annotations pre-erasure by the Lean type checker.
 
 \subsection{Propagation}
-
 \newcommand{\weaken}{\mathrm{weaken}}
 \newcommand{\rebreak}[1]{\mathrlap{\qquad#1}}
-
 \begin{alignat*}{3}
   &\weaken &&: \mathrlap{\AttrType \to \AttrType} \\
   &\weaken&&(m\ x^\kappa) &&=\ !\ x^\kappa \\
@@ -91,7 +86,6 @@ We use the following notation for substitution in $a = \mu\ x^\kappa_\adt.\ [[\t
 \end{alignat*}
 
 \subsection{Definitional Nuances}
-
 It is worth pointing out a number of semantic nuances in both the definitions of our types and propagate above:
 \begin{itemize}
 	\item If we know that a type is unique, we can always throw away this guarantee and make it shared, as described in \cref{sec:uniqueness}.
@@ -104,7 +98,6 @@ It is worth pointing out a number of semantic nuances in both the definitions of
 \end{itemize}
 
 \subsection{Utilities}
-
 We will now proceed to declare some convenient auxiliary functions. 
 
 \newcommand{\weakenInner}{\mathrm{weakenInner}}
@@ -146,7 +139,6 @@ strengthen makes every attribute within a type unique which can be made unique. 
 attr simply yields the outer attribute of any $\tau \neq x^\tau$.
 
 \subsection{Subtyping}
-
 Finally, whenever we pass a type $\tau_1$ to a type $\tau_2$, we must ask ourselves whether $\tau_1$ can be applied to $\tau_2$. The type structure must be the same, but it should be possible to throw away the uniqueness attribute of types within $\tau_1$. Hence, we use $m_1 \succcurlyeq_m m_2 :\Leftrightarrow m_1 = * \lor m_1 =\ ! \land m_2 =\ !$ to denote attribute subtyping and define a subtyping relation $\succcurlyeq$ for fully propagated types $\tau_1$ and $\tau_2$ as follows:
 \begin{mathpar}
 	\boxed{\tau_1 \succcurlyeq \tau_2} \hspace{1.5em}
@@ -164,7 +156,6 @@ Note that if higher-order functions could be unique, we would have to account fo
 For our model of the IR, we use a mixture of the IR described by \cite{ullrich_counting_2020} and the newly implemented LCNF, both detailed in \cref{sec:irs}. 
 
 \subsection{Syntax}
-
 \begin{alignat*}{3}
   \icode{e} &\in \Expr &\Coloneqq&\ \icode{c [y]}
     \sep \icode{pap c [y]}
@@ -209,7 +200,6 @@ Finally, there are a number of omissions from our IR compared to the IR implemen
 As described in \cref{sec:borrowingbackground}, borrowing in functional languages is closely related to escape analysis; if nothing within a shared parameter escapes, then we do not have to make a unique argument to that parameter shared, as the caller is guaranteed to still hold the only reference to the value in question when the called function returns. Instead of unloading this additional burden of tracking the data flow of variables and fields to the user, we implement a data flow analysis.
 
 \subsection{Syntax}
-
 \begin{alignat*}{3}
   n, m &\in \mathbb{N} \\
   s, t, v &\in \Tag &\Coloneqq&\ \#\textrm{const c} \sep \#\textrm{case i} \sep \#\textrm{app} \sep \#\textrm{param n} \\
@@ -222,9 +212,7 @@ Escapees are the subject of our escape analysis and represent the elements of th
 Since external funtions do not have a function body that we can analyze, a global and partial function $\delta_{q_e}$ allows specifying the set of all escapees for these functions. For external functions $c \notin \dom(\delta_{q_e})$ we will assume all parameters and all fields thereof to escape.
 
 \subsection{Computing Escapees}
-
 \newcommand{\ecp}[2]{\llbracket {#1} \rrbracket_Q \left( {#2} \right)}
-
 Using abstract interpretation \citep{cousot_abstract_1977}, we compute a fixed point of the following mutually recursive equations $\ecp{\cdot}{\cdot}$ and $\delta_Q$, which we will explain in detail along the way. The first parameter of $\ecp{\cdot}{\cdot}$ is the portion of the function body that we want to compute the escapees for, the second parameter denotes the vector of tags thus far from the start of the function to this portion of the function body.
 
 \subsubsection{Escapees of function bodies}
@@ -237,27 +225,28 @@ Using abstract interpretation \citep{cousot_abstract_1977}, we compute a fixed p
   &\ecp{\icode{case x of [F]}}{[t]}\ =\
     \bigcup_n \ecp{\icode{[F]}_n}{\#\text{case n} :: [t]} \\
   &\ecp{\icode{case' x of [ctorᵢ [y] ⇒ F]}}{[t]}\ =\
-    \bigcup_n \ecp{\icode{[F]}_n}{\#\text{case n} :: [t]} \\
+    \bigcup_n \ecp{\icode{[F]}_n}{t'} \\
     &\rebreak{\cup \left\{\icode{x}_{nm :: [kj]} @ [s]?
-    \ \ |\ \ (\icode{[y]}_m)_{[kj]} @ [s]? \in \ecp{\icode{[F]}_n}{\#\text{case n} :: [t]}\ \land\ m \in [0, |\icode{[y]}|) \right\}} \\
+    \ |\ (\icode{[y]}_m)_{[kj]} @ [s]? \in \ecp{\icode{[F]}_n}{t'} \land m \in [0, |\icode{[y]}|) \right\}} \\
+	&\rebreak{\qquad\text{where } t' \coloneqq \text{case n} :: [t]}\\
   &\ecp{\icode{let x = c [y]; F}}{[t]} = Q_F \\
   &\rebreak{\cup \begin{cases}
   	Q & \exists [nm].\ \icode{x}_{[nm]} @ [v]? \in Q_F \land \icode{c} \in \dom(\delta_Q) \\
     \left\{\icode{y}_{[]} \ | \ \icode{y} \in \icode{[y]}\right\} & \exists [nm].\ \icode{x}_{[nm]} @ [v]? \in Q_F \land \icode{c} \notin \dom(\delta_Q) \land \icode{c} \notin \dom(\delta) \\
   	\emptyset & \exists [nm].\ \icode{x}_{[nm]} @ [v]? \in Q_F \land \icode{c} \notin \dom(\delta_Q) \land \icode{c} \in \dom(\delta) \\
-  	\emptyset & \lnot \exists [nm].\ \icode{x}_{[nm]} @ [v]? \in Q_F
+  	\emptyset & \forall [nm].\ \icode{x}_{[nm]} @ [v]? \notin Q_F
   \end{cases}} \\
   &\rebreak{\qquad\text{where } Q := \left\{(\icode{[y]}_z)_{[ij]} @ (\#\text{param z} :: [t]) \ |\ z_{[ij]} @ [s]? \in \delta_Q(\icode{c}) \right\}}\\
   &\rebreak{\qquad\text{ and } Q_F := \ecp{\icode{F}}{\#\text{app}::[t]}}\\
   &\ecp{\icode{let x = pap c [y]; F}}{[t]} = \ecp{\icode{F}}{[t]} \\
   &\rebreak{\cup \begin{cases}
   	\left\{\icode{y}_{[]} \ | \ \icode{y} \in \icode{[y]}\right\} & \exists [nm].\ \icode{x}_{[nm]} @ [v]? \in \ecp{\icode{F}}{[t]} \\
-  	\emptyset & \lnot \exists [nm].\ \icode{x}_{[nm]} @ [v]? \in \ecp{\icode{F}}{[t]}
+  	\emptyset & \forall [nm].\ \icode{x}_{[nm]} @ [v]? \notin \ecp{\icode{F}}{[t]}
   \end{cases}}\\
   &\ecp{\icode{let x = y z; F}}{[t]} = \ecp{\icode{F}}{[t]} \\
   &\rebreak{\cup \begin{cases}
       \left\{\icode{y}_{[]}, \icode{z}_{[]}\right\} & \exists [nm].\ \icode{x}_{[nm]} @ [v]? \in \ecp{\icode{F}}{[t]} \\
-      \emptyset & \lnot \exists [nm].\ \icode{x}_{[nm]} @ [v]? \in \ecp{\icode{F}}{[t]}
+      \emptyset & \forall [nm].\ \icode{x}_{[nm]} @ [v]? \notin \ecp{\icode{F}}{[t]}
   	\end{cases}}\\
   &\ecp{\icode{let x = (A [τ?]).ctorᵢ [y]; F}}{[t]} = \ecp{\icode{F}}{[t]} \\
   &\rebreak{\cup \begin{cases}
@@ -266,8 +255,8 @@ Using abstract interpretation \citep{cousot_abstract_1977}, we compute a fixed p
   \end{cases}} \\
   &\ecp{\icode{let x = projᵢⱼ y; F}}{[t]} = \ecp{F}{[t]} \\
   &\rebreak{\cup \begin{cases}
-    \left\{\icode{y}_{\icode{ij} :: [kl]} @ [s]? \ | \ \icode{x}_{[kl]} @ [s]? \in \ecp{\icode{F}}{[t]} \right\} & \exists [nm].\ \icode{x}_{[nm]} @ [v] \in \ecp{\icode{F}}{[t]} \\
-    \emptyset & \lnot \exists [nm].\ \icode{x}_{[nm]} @ [v]? \in \ecp{\icode{F}}{[t]}
+    \left\{\icode{y}_{\icode{ij} :: [kl]} @ [s]? \ | \ \icode{x}_{[kl]} @ [s]? \in \ecp{\icode{F}}{[t]} \right\} & \exists [nm].\ \icode{x}_{[nm]} @ [v]? \in \ecp{\icode{F}}{[t]} \\
+    \emptyset & \forall [nm].\ \icode{x}_{[nm]} @ [v]? \notin \ecp{\icode{F}}{[t]}
   \end{cases}}
 \end{align*}
 \endgroup
@@ -327,7 +316,7 @@ def List.get? : List α → Nat → Option α
   | x :: _,  0     => Option.some x
   | _ :: xs, n + 1 => List.get? xs n
 \end{code}
-If we were to apply our escape analysis without ct, we would obtain an infinite set of escapees $\{\icode{xs}_{[10]}, \icode{xs}_{[11, 10]}, \icode{xs}_{[11, 11, 10]}, \dots\}$, where $10$ denotes the head of cons constructor, and $11$ denotes the tail of the cons constructor.
+If we were to apply our escape analysis without ct, we would obtain an infinite set of escapees $\{\icode{xs}_{[10]}, \icode{xs}_{[11, 10]}, \icode{xs}_{[11, 11, 10]}, \dots\}$, where $10$ denotes the head of the cons constructor, and $11$ denotes the tail of the cons constructor.
 
 Collapsing the escapees with the same tag effectively bounds the lattice: Because there are only finitely many call sites, if the escape analysis is executed on a program where it would otherwise diverge, it must necessarily eventually visit the same call site twice and yield an escapee with the same variable but a different field. Collapsing all these escapees from the same call site thus computes a more general escapee that subsumes all the previous escapees from that call site, ensuring that we can iteratively reduce the field in which we were diverging up to a bound of $[]$, where we are guaranteed to terminate. This is a form of widening \citep{blanchet_introduction_2002} where both the previous and the current fixed-point iteration are part of our set and get widened together post-hoc.
 
@@ -354,7 +343,6 @@ When checking whether a parameter can be borrowed, we do not need to check wheth
 \newcommand{\ExternUniqueFields}{\mathrm{ExternUniqueFields}}
 
 \subsection{Syntax}
-
 \begin{alignat*}{3}
 	r_{*_e} &\in \ExternUniqueFieldResult\ &\Coloneqq& *_r \sep !_r \sep ?_r\ x^\tau\ [ij] \\
 	f_{*_e} &\in \ExternUniqueField\ &\Coloneqq&\ [ij] (x^\tau)? \\
@@ -372,26 +360,24 @@ Finally, a global and partial function $\gamma_{*_e}$ specifies the full and non
 \subsection{Unique Fields}
 \subsubsection{External uniqueness}
 \newcommand{\eu}{\mathrm{eu}}
-\newcommand{\paath}{\mathrm{path}}
-
 \begin{alignat*}{3}
 	&\eu &&: \mathrlap{\ADTConst \times [\Ctor \times \Proj] \rightharpoonup \ExternUniqueFieldResult} \\
-	&\eu&&(A, \paath) &&= \\
+	&\eu&&(A, p) &&= \\
 	&\rebreak{\begin{cases}
-		?_r\ x^\tau\ [kl]	& A \in \dom(\gamma_{*_e}) \land \exists [ij] (x^\tau) \in \gamma_{*_e}(A).\ \exists [kl].\ [ij] \concat [kl] = \paath \\
-		*_r	& A \in \dom(\gamma_{*_e}) \land \exists [ij] (x^\tau) \in \gamma_{*_e}(A).\ \paath \leq_+ [ij] \land \paath \neq [ij] \\
-		*_r	& A \in \dom(\gamma_{*_e}) \land \exists [ij] \in \gamma_{*_e}(A).\ \paath \leq_+ [ij] \lor [ij] \leq_+ \paath \\
-		!_r	& A \in \dom(\gamma_{*_e}) \land \lnot \exists [ij] (x^\tau)? \in \gamma_{*_e}(A).\ \paath \leq_+ [ij] \lor [ij] \leq_+ \paath \\
+		?_r\ x^\tau\ [kl]	& A \in \dom(\gamma_{*_e}) \land \exists [ij] (x^\tau) \in \gamma_{*_e}(A).\ \exists [kl].\ [ij] \concat [kl] = p \\
+		*_r	& A \in \dom(\gamma_{*_e}) \land \exists [ij] (x^\tau) \in \gamma_{*_e}(A).\ p \leq_+ [ij] \land p \neq [ij] \\
+		*_r	& A \in \dom(\gamma_{*_e}) \land \exists [ij] \in \gamma_{*_e}(A).\ p \leq_+ [ij] \lor [ij] \leq_+ p \\
+		!_r	& A \in \dom(\gamma_{*_e}) \land \lnot \exists [ij] (x^\tau)? \in \gamma_{*_e}(A).\ p \leq_+ [ij] \lor [ij] \leq_+ p \\
 		*_r & A \notin \dom(\gamma_{*_e})
 	\end{cases}}
 \end{alignat*}
 
-eu (``external unique'') computes the ExternUniqueFieldResult for a given external type and field. If the field is somewhere on the interior of the tree induced by $\gamma_{*_e}$, we assume that the field is unique. Otherwise, if the field is a leaf or points to a field within a leaf, there are two cases: Either the uniqueness of the field depends on a type parameter, in which case we yield $?_r\ x^\tau\ [kl]$ with $[kl]$ being the remaining path within the leaf, or it does not, in which case we return that the field is unique. Only if the field is not within the tree or within one of the leafs do we return that the field is shared.
+eu (``external unique'') computes the ExternUniqueFieldResult for a given external type and path $p$ to a field. If the field is somewhere on the interior of the tree induced by $\gamma_{*_e}$, we assume that the field is unique. Otherwise, if the field is a leaf or points to a field within a leaf, there are two cases: Either the uniqueness of the field depends on a type parameter, in which case we yield $?_r\ x^\tau\ [kl]$ with $[kl]$ being the remaining path within the leaf, or it does not, in which case we return that the field is unique. Only if the field is not within the tree or within one of the leafs do we return that the field is shared.
 
 \subsubsection{Internal uniqueness}
 \newcommand{\isUnique}{\mathrm{isUnique}}
+\newcommand{\paath}{\mathrm{path}}
 \newcommand{\rest}{\mathrm{rest}}
-
 \begin{alignat*}{3}
 	&\isUnique &&: \mathrlap{\AttrType \times [\Ctor \times \Proj] \rightharpoonup \mathbb{B}} \\
 	&\isUnique&&(*\ \blacksquare, \paath) &&= \top \\
@@ -418,7 +404,6 @@ With isUnique, we compute whether a given field is unique in a given type. If th
 In $\gamma_*$, we accumulate all the unique fields of a given type with a given vector of type arguments.
 
 \subsection{Borrowed Parameters}
-
 \begin{alignat*}{3}
 	&\mathbb{B}_\cdot(\cdot, \cdot, \cdot) : \mathrlap{2^\Escapee \times \Var \times \AttrType \times \AttrType \to \mathbb{B}} \\
 	&\mathbb{B}_Q(x, *\ A\ [\tau_\arrg], !\ A\ [\tau_\arrg']) &&= \forall x_{[ij]}@[t]? \in Q.\ [ij] \notin \gamma_*(A, [\tau_\arrg]) \\
@@ -472,7 +457,7 @@ ZeroedFields will be used for the mechanism described in the discussion of the \
 \newcommand{\zeroo}{\mathrm{zero}}
 
 \begin{alignat*}{3}
-	\zeroo &: \mathrlap{\ZeroedFields \times \Attr \times Var \times Ctor \times Proj \to \ZeroedFields} \\
+	\zeroo &: \mathrlap{\ZeroedFields \times \Attr \times \Var \times \Ctor \times \Proj \to \ZeroedFields} \\
 	\zeroo&(Z, m, x, i, j) &&= \begin{cases}
 		Z[(x, i, j) \mapsto \top] & m = * \\
 		Z & m =\ !

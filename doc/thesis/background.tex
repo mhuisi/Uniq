@@ -78,7 +78,7 @@ What distinguishes propositions $p : \mathbb{P}$ from other types is that $\math
 \subsubsection{Combined power}
 Putting all of these mechanisms together yields a type theory powerful enough to declare types like $\mathrm{Vec}\ \alpha\ n$ and all the usual objects that are used in mathematics, as well as logical operators like $\cdot \land \cdot$, $\exists x.\ p(x)$, $\cdot = \cdot$ and even well-founded recursion. Additionally, the term language is strong enough to write arbitrary programs, as well as classical proofs within $\mathbb{P}$.
 
-For a detailed formal description of Lean's type theory, we refer to \citep{carneiro_type_2019}.
+For a detailed formal description of Lean's type theory, we refer to \cite{carneiro_type_2019}.
 
 \section{Intermediate Representations for Lean 4}\label{sec:irs}
 As outlined in \cref{sec:lean4}, Lean 4 ultimately compiles to either C code or LLVM IR code \citep{lattner_llvm_2004}, with the latter being work-in-progress. Once compiled, much of the structure of the original Lean 4 program is lost, including types and the global guarantee of purity. Hence, introducing additional intermediate representations between Lean 4 and the resulting compiled program can help with leveraging the additional structure in the original Lean 4 code for a first pass of Lean-specific optimizations.
@@ -239,7 +239,7 @@ def Array.groupBy (p : α → α → Ordering) (xs : Array α)
 
 \lstinline|(fun x => ...)| denotes a lambda expression. As we are using \lstinline|RBMap.update|, the \lstinline|group| corresponding to \lstinline|x| is updated in-place, and now our implementation has the time complexity that we would expect it to have.
 
-Situations akin to this one can occur for other types as well. We will discuss similar challenges related to containers that occur when ensuring referential uniqueness statically in \cref{sec:borrowingbackground}.
+Situations akin to this one can occur for other types as well. We will discuss similar challenges related to containers that occur when statically ensuring referential uniqueness in \cref{sec:borrowingbackground}.
 
 \section{Linear Type Theory}\label{sec:ltt}
 \subsubsection{Substructural rules}
@@ -270,7 +270,7 @@ With \textsc{Dereliction} and \textsc{Promotion}, linear types make a guarantee 
 
 In a type system with \textsc{Dereliction}, linearity is unsuited to guarantee the referential uniqueness of a variable, as it may have been duplicated in the past, an issue that is acknowledged by \cite{wadler_is_1991}. For linear type systems where linearity is guaranteed from construction onwards, \cite{chirimar_reference_1996} prove that the linearity of a variable implies the uniqueness of the associated reference.
 
-Future linear type systems \citep{goos_observers_1992} \citep{atkey_syntax_2018} \citep{bernardy_linear_2018} \citep{brady_idris_2021} \citep{choudhury_graded_2021} \citep{li_linear_2022} \citep{spiwack_linearly_2022} always adopt one of these two approaches and either allow for a non-linear to linear coercion, or no coercion at all, thus cementing the idea of ``linearity'' referring to either ``always uniquely referenced'' or ``used linearly from this point onwards''. The latter can be made to act like the former by guaranteeing referential uniqueness through other means, e.g.\ by making every constructor of a certain type return a value of linear type, effectively turning referential uniqueness into a library design decision.
+Future linear type systems \citep{odersky_observers_1992} \citep{atkey_syntax_2018} \citep{bernardy_linear_2018} \citep{brady_idris_2021} \citep{choudhury_graded_2021} \citep{li_linear_2022} \citep{spiwack_linearly_2022} always adopt one of these two approaches and either allow for a non-linear to linear coercion, or no coercion at all, thus cementing the idea of ``linearity'' referring to either ``always uniquely referenced'' or ``used linearly from this point onwards''. The latter can be made to act like the former by guaranteeing referential uniqueness through other means, e.g.\ by making every constructor of a certain type return a value of linear type, effectively turning referential uniqueness into a library design decision.
 
 To make the distinction between the two kinds of linear type systems clear, we will henceforth refer to linear type systems without any coercion between linear and non-linear values as ``invariably unique'' and type systems adopting \textsc{Dereliction} and \textsc{Promotion} as ``properly linear'', but still use the term ``linear'' to group the two of them together, as is often done in the literature since Wadler's first papers. See \cref{fig:wadler-properly-linear} for Wadler's properly linear type system and \cref{fig:wadler-invariably-unique} for his invariably unique type system.
 
@@ -402,14 +402,14 @@ In linear type theories, the \textsc{App} rule is typically stated in a manner s
 When omitting the \textsc{Exchange} rule in dependent type theory, it is not clear that splitting the context into $\Gamma_1$ and $\Gamma_2$ is always possible, since types in $\Gamma_2$ may depend on variables in $\Gamma_1$. This seemingly technical issue induces a semantic problem as well: Which occurrences of a variable constitute a use? For example, what about occurrences in types?
 
 \subsubsection{Erasure}
-After this issue was left unsolved for a long time, \cite{lindley_i_2016} resolved it by introducing a third kind of type to linear type theory, resulting in the three kinds of type ``linear'' (denoted as $1$), ``non-linear'' (denoted as $\omega$) and ``erased'' (denoted as $0$). ``erased'' specifies that a type or a term within DTT is not computationally relevant and will be erased by the compiler. 
+After this issue was left unsolved for a long time, \cite{mcbride_i_2016} resolved it by introducing a third kind of type to linear type theory, resulting in the three kinds of type ``linear'' (denoted as $1$), ``non-linear'' (denoted as $\omega$) and ``erased'' (denoted as $0$). ``erased'' specifies that a type or a term within DTT is not computationally relevant and will be erased by the compiler. 
 
 Erased terms or types can only be used in other erased terms or types, and types are always erased. Since an erased term is not computationally relevant, we also do not need to count variable uses in erased terms. Finally, when a linear variable is used, it becomes erased, which justifies the use of $1$ to denote linear types and $0$ to denote erased types. 
 
 \textsc{Exchange} is still omitted, but variables in the context that act as dependencies for other variables in the context are always guaranteed to be erased. In \textsc{App}, since we do not need to count the uses of variables of type $0$, we can freely distribute variables of type $1$ and $\omega$ to either $\Gamma_1$ or $\Gamma_2$, but duplicate all variables of type $0$ in their given order to $\Gamma_1$ and $\Gamma_2$. In other words, both the technical and the semantic issue are resolved at once.
 
 \subsubsection{Quantities instead of types}
-The implementations of QTT by \cite{lindley_i_2016} and \cite{atkey_syntax_2018} use an additional trick to make the description of the type theory more compact. 
+The implementations of QTT by \cite{mcbride_i_2016} and \cite{atkey_syntax_2018} use an additional trick to make the description of the type theory more compact. 
 
 While linear type theories usually denote linearity on the type $\tau$, quantitative type theory instead denotes it on the binder ``$:$'' in $x : \tau$, which leads to $0$, $1$ and $\omega$ not simply being kinds of types, but ``quantities'' on the binders $x :_q \tau$ for $q \in \{0, 1, \omega\}$ in the context. There are only linear types, and the quantity on the binder determines the substructural restrictions on the variable. 
 
@@ -417,7 +417,7 @@ The typing judgement $\Gamma \vdash e :_\sigma \tau$ is quantified as well to tr
 
 With these tools, $\tau_1 \multimap \tau_2$ is encoded as $(x :_1 \tau_1) \to \tau_2$ and $\tau_1 \otimes \tau_2$ from \cref{fig:wadler-properly-linear} in \cref{sec:ltt} is encoded as $(x :_1 \tau_1) \otimes (y :_1 \tau_2) \otimes \mathbb{1}$. With a dependent type-level if-then-else construct, we can also encode $\tau_1 \oplus \tau_2 := (b :_1 \mathbb{B}) \otimes (\mathrm{if}\ b\ \mathrm{then}\ \tau_1\ \mathrm{else}\ \tau_2)$ \citep{grenrus_dependent_2020}.
 
-Both \cite{lindley_i_2016} and \cite{atkey_syntax_2018} specify a generic framework for adding additional quantities to the type theory, allowing, for example, the additional introduction of a $\leq\hspace{-0.3em}1$ quantity representing affinity, or more accurate accounting of uses $n > 1$.
+Both \cite{mcbride_i_2016} and \cite{atkey_syntax_2018} specify a generic framework for adding additional quantities to the type theory, allowing, for example, the additional introduction of a $\leq\hspace{-0.3em}1$ quantity representing affinity, or more accurate accounting of uses $n > 1$.
 
 The typing rules for quantitative type theory as described by \cite{svoboda_additive_2021} and inspired by \cite{atkey_syntax_2018} can be found in \cref{fig:qtt}.
 
@@ -499,7 +499,7 @@ Implementations like the one in Linear Haskell \citep{bernardy_linear_2018} ackn
 Note that since this coercion requires switching out the entire type of the array, coercing nested arrays in constant time becomes problematic. A recent apporach by \cite{spiwack_linearly_2022} attempts to mitigate this issue by introducing a system of linear capabilities on top of the linear type system, so that Read and Read+Write capabilities are managed and passed around implicitly, freeze removes the Write capability from an MArray and gaining linear read access to a nested array within requires the Write capability for the outer array. We will go into some more detail on this approach in \cref{sec:borrowingbackground}.
 
 \subsubsection{Lambda calculus and uniqueness types}
-Unfortunately, the original type system of Clean was formulated in terms of graph rewriting and not lambda calculus, which meant that advances by the rest of the type theory research community were difficult to transfer over to uniqueness typing, a deficit that was only resolved much later by \cite{de_vries_making_2009}. In his thesis, de Vries first provides a uniqueness type system based on lambda calculus resembling that of Clean and then iteratively refines it with the goal of introducing higher-rank polymorphism \citep{peyton_jones_practical_2007}.
+Unfortunately, the original type system of Clean was formulated in terms of graph rewriting and not lambda calculus, which meant that advances by the rest of the type theory research community were difficult to transfer over to uniqueness typing, a deficit that was only resolved much later by \cite{de_vries_making_2009}. In his thesis, de Vries first provides a uniqueness type system based on lambda calculus resembling that of Clean and then iteratively refines it with the goal of introducing higher-rank polymorphism \citep{jones_practical_2007}.
 
 \subsubsection{Challenges}
 In uniqueness type systems, there are a number of challenges that do not appear in linear type systems. 
@@ -573,17 +573,17 @@ In order to alleviate this issue, many linear type theories implement a notion o
 There are essentially three classes of implementations of borrowing:
 \begin{enumerate}
 	\item Applying syntactical restrictions on the types that can be borrowed \citep{wadler_linear_1990}
-	\item Integrating an escape analysis with the type theory \citep{goos_observers_1992}\citep{kobayashi_quasi-linear_1999}\citep{goos_another_2002}
+	\item Integrating an escape analysis with the type theory \citep{odersky_observers_1992}\citep{kobayashi_quasi-linear_1999}\citep{aspinall_another_2002}
 	\item Using type-level mechanisms to hide the explicit threading \citep{spiwack_linearly_2022}
 \end{enumerate}
 
 \cite{wadler_linear_1990} proposes the notion of a strict \lstinline|let! (x) y = u in v| expression to borrow a variable \verb|x| in \verb|u|, where \verb|u| is evaluated strictly and none of the components of the type of \verb|x| occur in the type of \verb|u|. If these conditions are fulfilled, then the type system guarantees that \verb|x| cannot be contained in the result of \verb|u|. Unfortunately, this is already quite restrictive, and when polymorphic- or erased types come into play, borrowing very rarely works when one wants it to work.
 
-\cite{goos_observers_1992} implements so-called ``observer types'', which witness that the variable corresponding to the observer type has been borrowed. Then, upon leaving the scope of the borrow, the implementation checks whether the type of the resulting expression contains any observer types to ensure that none of the borrowed variables escape. \cite{goos_another_2002} and \cite{kobayashi_quasi-linear_1999} implement similar ideas.
+\cite{odersky_observers_1992} implements so-called ``observer types'', which witness that the variable corresponding to the observer type has been borrowed. Then, upon leaving the scope of the borrow, the implementation checks whether the type of the resulting expression contains any observer types to ensure that none of the borrowed variables escape. \cite{aspinall_another_2002} and \cite{kobayashi_quasi-linear_1999} implement similar ideas.
 
 \cite{spiwack_linearly_2022} use a system of linear constraints akin to type classes that can be consumed and returned implicitly by functions in order to remove the explicit threading from the term language of Linear Haskell. These constraints need to be freed manually and explicitly by the user, much like regular Linear Haskell types. Types subject to these constraints are tagged with an additional variable in order to connect constraints with regular types, and when returning a fresh constraint, an existential quantifier must be used to summon a variable to tag the constraint with. There are constraints for hiding the continuation-passing style when creating functions, constraints for reading and writing arrays, as well as constraints for slices of arrays.
 
-We feel that constraint systems are an interesting approach, but that as formulated by \cite{spiwack_linearly_2022}, there is unfortunately still a large amount of syntactical overhead in the term language, as constraints have to be unpacked explicitly.
+We think that constraint systems are an interesting approach, but that as formulated by \cite{spiwack_linearly_2022}, there is unfortunately still a large amount of syntactical overhead in the term language, as constraints have to be unpacked explicitly.
 
 \subsubsection{Complex borrowing}
 Finally, linear references may not just get lost when passed as function arguments themselves, but when stored within a function argument as well. For example, in $\mathrm{fst} : \tau_1 \otimes \tau_2 \multimap \tau_1$, $\tau_1$ escapes, but $\tau_2$ is lost. Unfortunately, this issue is much more difficult to resolve, as we cannot retain our unique reference to $\tau_2$ without also retaining our unique reference to $\tau_1 \otimes \tau_2$, with which we will also retain our unique reference to $\tau_1$, a reference that is not unique anymore after application of $\mathrm{fst}$. 
