@@ -1,5 +1,5 @@
 \chapter{Formal Specification}\label{sec:theory}
-In this chapter, we will provide a formal description of our type theory and all the associated mechanisms required to make it work. \Cref{sec:types} introduces the syntactical material for our types and declares a number of commonly useful utility functions. \Cref{sec:ir} defines the syntax of the IR. In \cref{sec:escapeanalysis}, we specify an escape data flow analysis in order to implement the borrowing mechanism described in \cref{sec:borrowing}. Finally, \cref{sec:checking} provides the rules of our type theory.
+In this chapter, we will provide a formal description of our type theory and all the associated mechanisms required to make it work. \Cref{sec:types} introduces the syntactical material for our types and declares a number of commonly useful utility functions. \Cref{sec:ir} defines the syntax of the IR. In \Cref{sec:escapeanalysis}, we specify an escape data flow analysis in order to implement the borrowing mechanism described in \Cref{sec:borrowing}. Finally, \Cref{sec:checking} provides the rules of our type theory.
 
 \section{Types}\label{sec:types}
 In all of the following sections, we use $[x]$ to denote a vector of elements $x$, otherwise commonly written as $\overline{x}$. We will often lift these brackets over an operation; e.g.\ the functional code $\mathrm{map}(\oplus, \mathrm{zip}([x], [y]))$ is written as $[x \oplus y]$ for vectors $[x]$ and $[y]$. In derivation rules, we also use $[x]$ for $x \in \mathbb{B}$ to mean $\forall x \in [x].\ x$.
@@ -46,7 +46,7 @@ AttrType contains our types. $m\ x^\kappa$ and $x^\tau$ are the two kinds of var
 
 $m\ \blacksquare$ is an erased type, $m\ A\ [\tau_\arrg]$ is an ADT (or external type) $A$ parametrized by type arguments $[\tau_\arrg]$, and $!\ [\tau_\param \to \tau_\ret]$ is the type of a higher-order function. 
 
-Finally, $\delta_\tau$ provides the parameter- and return types for all functions in the program, including external ones. This is a reasonable assumption because we can simply assign a type $[!\ \kappa_\param] \to \ !\ \kappa_\ret$ for Lean 4 functions with an unattributed function type $[\kappa_\param] \to \ \kappa_\ret$. For $\delta_\tau(c) = ([\tau_\param], \tau_\ret)$, we also demand that all the types are fully propagated, i.e.\ that $\forall \tau_\param \in [\tau_\param].\ \mathrm{propagate}(\tau_\param) = \tau_\param \land \mathrm{propagate}(\tau_\ret) = \tau_\ret$ for the definition of propagate below.
+Finally, $\delta_\tau$ provides the parameter and return types for all functions in the program, including external ones. This is a reasonable assumption because we can simply assign a type $[!\ \kappa_\param] \to \ !\ \kappa_\ret$ for Lean 4 functions with an unattributed function type $[\kappa_\param] \to \ \kappa_\ret$. For $\delta_\tau(c) = ([\tau_\param], \tau_\ret)$, we also demand that all the types are fully propagated, i.e.\ that $\forall \tau_\param \in [\tau_\param].\ \mathrm{propagate}(\tau_\param) = \tau_\param \land \mathrm{propagate}(\tau_\ret) = \tau_\ret$ for the definition of propagate below.
 
 Throughout this chapter, we assume that functions $c$ have already been type-checked without annotations pre-erasure by the Lean type checker.
 
@@ -88,13 +88,13 @@ We use the following notation for substitution in $a = \mu\ x^\kappa_\adt.\ [[\t
 \subsection{Definitional Nuances}
 It is worth pointing out a number of semantic nuances in both the definitions of our types and propagate above:
 \begin{itemize}
-	\item If we know that a type is unique, we can always throw away this guarantee and make it shared, as described in \cref{sec:uniqueness}.
+	\item If we know that a type is unique, we can always throw away this guarantee and make it shared, as described in \Cref{sec:uniqueness}.
 	\item In $m\ \blacksquare$, $\blacksquare$ could be any other type, potentially parametrized by any other attributed type if $\blacksquare$ used to be $A\ [\tau_\arrg]$. We must ensure that our type theory can deal with this kind of erasure.
 	\item We must always ensure that types remain fully propagated.
 	\item Within an ADT declaration $a$, we do not know how to propagate $x^\tau$, as it depends on the concrete parameter type. Instead, we ensure that type parameters become fully propagated when substituting the type variables for type parameters using our definition of $a\{A, [\tau]\}$.
 	\item While we can propagate within a given ADT field or within any other given type, we cannot propagate from an outer $!\ A\ [\tau_\arrg]$ into the fields within $\gamma(A)$, as not all the attributes in $\gamma(A)$ are floated to the outer $!\ A\ [\tau_\arrg]$, only those in the type parameters $[\tau_\arrg]$. To alleviate this issue, we take an attribute $*$ in a field within $\gamma(A)$ to mean ``Unique if the outer value is unique'' and enforce this property in our type rules for projections on $m\ A\ [\tau_\arrg]$.
-	\item Higher-order functions are always shared, so we do not need to worry about covariance or contravariance in either propagate or type parameters. This is a considerable limitation: Lean 4 code uses higher-order functions very liberally to encode type classes, monads, as well as some performance idioms related to the Counting Immutable Beans optimization described in \cref{sec:beans}. See \cref{sec:hof} for possible approaches to alleviate this issue in future work.
-	\item Since external types have no associated declaration, if we want to gather information about the type, we must rely on auxiliary information provided by users at the FFI. We will need this kind of auxiliary information in \cref{sec:escapeanalysis} and \cref{sec:borrowing}.
+	\item Higher-order functions are always shared, so we do not need to worry about covariance or contravariance in either propagate or type parameters. This is a considerable limitation: Lean 4 code uses higher-order functions very liberally to encode type classes, monads, as well as some performance idioms related to the Counting Immutable Beans optimization described in \Cref{sec:beans}. See \Cref{sec:hof} for possible approaches to alleviate this issue in future work.
+	\item Since external types have no associated declaration, if we want to gather information about the type, we must rely on auxiliary information provided by users at the FFI. We will need this kind of auxiliary information in \Cref{sec:escapeanalysis} and \Cref{sec:borrowing}.
 \end{itemize}
 
 \subsection{Utilities}
@@ -153,7 +153,7 @@ Finally, whenever we pass a type $\tau_1$ to a type $\tau_2$, we must ask oursel
 Note that if higher-order functions could be unique, we would have to account for covariance and contravariance in this definition.
 
 \section{Intermediate Representation}\label{sec:ir}
-For our model of the IR, we use a mixture of the IR described by \cite{ullrich_counting_2020} and the newly implemented LCNF, both detailed in \cref{sec:irs}. 
+For our model of the IR, we use a mixture of the IR described by \cite{ullrich_counting_2020} and the newly implemented LCNF, both detailed in \Cref{sec:irs}. 
 
 \subsection{Syntax}
 \begin{alignat*}{3}
@@ -187,7 +187,7 @@ The \icode{case} and \icode{proj} combination turns out to be unwieldy for subst
 
 However, it is very common that we would like to access multiple fields of \texttt{y} in succession, which we will not be able to do now that \texttt{y} is consumed. So, instead, the typical solution to this issue in substructural type systems is not to access fields via projections, but using a single destructuring pattern match that yields all fields of the type in one go and consumes the variable associated with the type. This is exactly what \icode{case'} does as well, and while the instruction does not exist in Lean's IR, it does exist in Lean 4's LCNF. 
 
-Regardless, even in LCNF, structures are still accessed via projections and not using a destructuring pattern match. To alleviate this final issue, we implement a compromise in \cref{sec:checking} which ensures that we can use multiple projections on \texttt{y}, but not use it in any other manner.
+Regardless, even in LCNF, structures are still accessed via projections and not using a destructuring pattern match. To alleviate this final issue, we implement a compromise in \Cref{sec:checking} which ensures that we can use multiple projections on \texttt{y}, but not use it in any other manner.
 
 \subsubsection{Omissions}
 Finally, there are a number of omissions from our IR compared to the IR implemented in Lean. Most notably, there are instructions to work with join points, which we could implement as functions in our IR. However, it is worth noting that join points, like auxiliary functions $c$ generated by the Lean compiler, do not necessarily have an associated user-provided type $\delta_\gamma(c)$. Unfortunately, we will not touch on the topic of type inference in this thesis.
@@ -197,7 +197,7 @@ Finally, there are a number of omissions from our IR compared to the IR implemen
 \newcommand{\ExternFunEscapees}{\mathrm{ExternFunEscapees}}
 
 \section{Escape Analysis}\label{sec:escapeanalysis}
-As described in \cref{sec:borrowingbackground}, borrowing in functional languages is closely related to escape analysis; if nothing within a shared parameter escapes, then we do not have to make a unique argument to that parameter shared, as the caller is guaranteed to still hold the only reference to the value in question when the called function returns. Instead of unloading this additional burden of tracking the data flow of variables and fields to the user, we implement a data flow analysis.
+As described in \Cref{sec:borrowingbackground}, borrowing in functional languages is closely related to escape analysis; if nothing within a shared parameter escapes, then we do not have to make a unique argument to that parameter shared, as the caller is guaranteed to still hold the only reference to the value in question when the called function returns. Instead of unloading this additional burden of tracking the data flow of variables and fields to the user, we implement a data flow analysis.
 
 \subsection{Syntax}
 \begin{alignat*}{3}
@@ -260,13 +260,13 @@ Using abstract interpretation \citep{cousot_abstract_1977}, we compute a fixed p
   \end{cases}}
 \end{align*}
 \endgroup
-In \icode{ret x}, only \texttt{x} itself escapes. For \icode{case x of [F]}, we determine the escapees of each $\icode{F} \in \icode{[F]}$ and compute the resulting union of all escapees. In \icode{case' x of [ctorᵢ [y] ⇒ F]}, we use the same idea as for \icode{case}, but must also transfer escapees concerning \texttt{[y]} over to \texttt{x}: each escapee $(\icode{[y]}_m)_{[kj]} @ [s]?$ in branch $n$ corresponding to constructor $n$ is converted to an escapee $\icode{x}_{nm :: [kj]} @ [s]?$. 
+In \icode{ret x}, only \texttt{x} itself escapes. For \icode{case x of [F]}, we determine the escapees of each $\icode{F} \in \icode{[F]}$ and compute the resulting union of all escapees. In \icode{case' x of [ctorᵢ [y] ⇒ F]}, we use the same idea as for \icode{case}, but must also transfer escapees concerning \texttt{[y]} over to \texttt{x}: Each escapee $(\icode{[y]}_m)_{[kj]} @ [s]?$ in branch $n$ corresponding to constructor $n$ is converted to an escapee $\icode{x}_{nm :: [kj]} @ [s]?$. 
 
 For all \icode{let x = e; F} function bodies, we will always have a case stating that if \texttt{x} does not escape in \texttt{F}, then neither do we need to compute any additional escapees for \texttt{e}.
 
 Application \icode{let x = c [y]; F} is the most tricky since it is the spot where our analysis recurses with escapees for \texttt{c}. If we have already computed escapees for \texttt{c} or they are specified in $\delta_{q_e}$, i.e.\ $\icode{c} \in \dom(\delta_Q)$, we take all escapees $z_{[ij]}@[s]?$ for parameters $z$ from $\delta_Q$ and rename them to the corresponding arguments $\icode{[y]}_z$. If $\icode{c} \notin \dom(\delta_{q_e})$ is external, all \texttt{[y]} are assumed to escape. Finally, if we have not already computed the escapees for \texttt{c} but are expected to do so in the future because \texttt{c} is not external, we yield the bottom element of our lattice $\bot = \emptyset$.
 
-When creating a higher-order function using \icode{pap c [y]}, we assume that all \texttt{[y]} escape if the resulting higher-order function escapes. The same is true for higher-order function application \texttt{y z}: If the result escapes, then so may \texttt{y} and \texttt{z}. Note that creating an escapee for \texttt{y}, i.e.\ the higher-order function itself, is important, because if the higher-order function containing all the previously-applied arguments or the return value of the function escapes, we need to know that the previously-applied arguments may escape too, and so we propagate this bit of information backwards using the escapee for \texttt{y}.
+When creating a higher-order function using \icode{pap c [y]}, we assume that all \texttt{[y]} escape if the resulting higher-order function escapes. The same is true for higher-order function application \texttt{y z}: if the result escapes, then so may \texttt{y} and \texttt{z}. Note that creating an escapee for \texttt{y}, i.e.\ the higher-order function itself, is important, because if the higher-order function containing all the previously-applied arguments or the return value of the function escapes, we need to know that the previously-applied arguments may escape too, and so we propagate this bit of information backwards using the escapee for \texttt{y}.
 
 \icode{(A [τ?]).ctorᵢ [y]} and \icode{projᵢⱼ y} are once again fairly straight-forward. If the ADT resulting from a constructor call escapes, then so do all of its fields, and if only particular fields of constructor \texttt{i} escape, then the respective escapees $\icode{x}_{\icode{i}j :: [nm]} @ [s]?$ must be translated to escapees for $\icode{[y]}_j$ by removing the $\icode{i}j$ field. Other escapees $\icode{x}_{kj :: [nm]} @ [s]?$ for $k \neq \icode{i}$ do not need to be translated.
 For \icode{projᵢⱼ y}, we use the same idea as for \icode{case'} and translate the escapees for the projection to ones for \texttt{y}.
@@ -318,9 +318,9 @@ def List.get? : List α → Nat → Option α
 \end{code}
 If we were to apply our escape analysis without ct, we would obtain an infinite set of escapees $\{\icode{xs}_{[10]}, \icode{xs}_{[11, 10]}, \icode{xs}_{[11, 11, 10]}, \dots\}$, where $10$ denotes the head of the cons constructor, and $11$ denotes the tail of the cons constructor.
 
-Collapsing the escapees with the same tag effectively bounds the lattice: Because there are only finitely many call sites, if the escape analysis is executed on a program where it would otherwise diverge, it must necessarily eventually visit the same call site twice and yield an escapee with the same variable but a different field. Collapsing all these escapees from the same call site thus computes a more general escapee that subsumes all the previous escapees from that call site, ensuring that we can iteratively reduce the field in which we were diverging up to a bound of $[]$, where we are guaranteed to terminate. This is a form of widening \citep{blanchet_introduction_2002} where both the previous and the current fixed-point iteration are part of our set and get widened together post-hoc.
+Collapsing the escapees with the same tag effectively bounds the lattice: Since there are only finitely many call sites, if the escape analysis is executed on a program where it would otherwise diverge, it must necessarily eventually visit the same call site twice and yield an escapee with the same variable but a different field. Collapsing all these escapees from the same call site thus computes a more general escapee that subsumes all the previous escapees from that call site, ensuring that we can iteratively reduce the field in which we were diverging up to a bound of $[]$, where we are guaranteed to terminate. This is a form of widening \citep{blanchet_introduction_2002} where both the previous and the current fixed-point iteration are part of our set and get widened together post-hoc.
 
-In \cref{sec:examples}, we will see that this form of widening is too aggressive when analyzing the escapees of a recursive function on a recursive type.
+In \Cref{sec:examples}, we will see that this form of widening is too aggressive when analyzing the escapees of a recursive function on a recursive type.
 
 \subsubsection{Escapees of functions}
 \begin{align*}
@@ -351,7 +351,7 @@ When checking whether a parameter can be borrowed, we do not need to check wheth
 
 For external types $A \notin \dom(\gamma)$, we cannot compute which fields are unique if their outer value is unique. Obtaining this information even for external types is useful because it allows us to specify which escapees are the relevant ones for a given external type and automatically check the adherence to this specification for the escapees provided for external functions, as well as handle fields for which uniqueness depends on a type parameter.
 
-Elements of ExternUniqueFieldResult denote the result for queries that ask whether a specific field is unique: It can be unique ($*_r$), shared ($!_r$) or its uniqueness can depend on a type parameter $x^\tau$ with auxiliary information about the field $[ij]$ within the type parameter for which we would like to determine whether it is unique ($?_r\ x^\tau\ [ij]$). It will be used in the function eu defined below. 
+Elements of ExternUniqueFieldResult denote the result for queries that ask whether a specific field is unique: it can be unique ($*_r$), shared ($!_r$) or its uniqueness can depend on a type parameter $x^\tau$ with auxiliary information about the field $[ij]$ within the type parameter for which we would like to determine whether it is unique ($?_r\ x^\tau\ [ij]$). It will be used in the function eu defined below. 
 
 ExternUniqueField is used to specify that a specific field $[ij]$ is unique, with the caveat that its uniqueness may depend on a type parameter $x^\tau$. 
 
@@ -405,7 +405,7 @@ In $\gamma_*$, we accumulate all the unique fields of a given type with a given 
 
 \subsection{Borrowed Parameters}
 \begin{alignat*}{3}
-	&\mathbb{B}_\cdot(\cdot, \cdot, \cdot) : \mathrlap{2^\Escapee \times \Var \times \AttrType \times \AttrType \to \mathbb{B}} \\
+	&\mathbb{B}_Q(x, \tau_\arrg, \tau_\param) : \mathrlap{2^\Escapee \times \Var \times \AttrType \times \AttrType \to \mathbb{B}} \\
 	&\mathbb{B}_Q(x, *\ A\ [\tau_\arrg], !\ A\ [\tau_\arrg']) &&= \forall x_{[ij]}@[t]? \in Q.\ [ij] \notin \gamma_*(A, [\tau_\arrg]) \\
 	&\mathbb{B}_Q(x, *\ A\ [\tau_\arrg], !\ \blacksquare) &&= \forall x_{[ij]}@[t]? \in Q.\ [ij] \notin \gamma_*(A, [\tau_\arrg]) \\
 	&\mathbb{B}_Q(x, *\ \blacksquare, !\ A\ [\tau_\arrg']) &&= \forall x_{[ij]}@[t]? \in Q.\ [ij] \notin \gamma_*(A, [\strengthen(\tau_\arrg')]) \\
@@ -413,7 +413,7 @@ In $\gamma_*$, we accumulate all the unique fields of a given type with a given 
 	&\mathbb{B}_Q(x, \tau_\arrg, \tau_\param) &&= \bot \qquad\text{otherwise}
 \end{alignat*}
 
-$\mathbb{B}_\cdot(\cdot, \cdot, \cdot)$ combines our escape analysis and the information we have gathered about unique fields in order to check whether a function parameter can be borrowed. The subscript parameter denotes the set of escapees belonging to the function parameter in the first proper parameter for which we want to check whether it is borrowed. The second parameter denotes the type of the argument that is supplied by the caller and the third denotes the type of the function parameter. We need the type of the supplied argument because the uniqueness of a field can depend on the concrete attributes for type arguments that are set in the caller.
+$\mathbb{B}_Q(x, \tau_arg, \tau_param)$ combines our escape analysis and the information we have gathered about unique fields in order to check whether a function parameter can be borrowed. $Q$ denotes the set of escapees belonging to the function parameter $x$ for which we want to check whether it is borrowed. $\tau_\arrg$ denotes the type of the argument that is supplied by the caller and $\tau_\param$ denotes the type of the function parameter. We need the type of the supplied argument because the uniqueness of a field can depend on the concrete attributes for type arguments that are set in the caller.
 
 When the argument to the function is an ADT of type $*\ A\ [\tau_\arrg]$, we check that the parameter $x$ itself does not escape and that none of its unique fields escape. In doing so, we use $[\tau_\arrg]$, not $[\tau_\arrg']$, since fields that are unique because the corresponding type argument is unique cannot be allowed to escape. 
 
@@ -445,7 +445,7 @@ In this section we will finally define the rules of our type theory.
 	\Gamma &\in \Context  &\Coloneqq&\ [] \sep \Gamma, x : \tau
 \end{alignat*}
 
-ZeroedFields will be used for the mechanism described in the discussion of the \icode{case'} instruction in \cref{sec:ir}. As we want to enable the use of multiple projections on the same variable within a function, we must track which fields have already been projected, disallow repeated projections of the same field and disallow using the variable in any way other than projecting from it. $Z \in \ZeroedFields$ will be used to track this information. For convenience we also declare the following functions that check whether a variable has no zeroed fields and zero a field if the corresponding inner attribute is unique. 
+ZeroedFields will be used for the mechanism described in the discussion of the \icode{case'} instruction in \Cref{sec:ir}. As we want to enable the use of multiple projections on the same variable within a function, we must track which fields have already been projected, disallow repeated projections of the same field and disallow using the variable in any way other than projecting from it. $Z \in \ZeroedFields$ will be used to track this information. For convenience we also declare the following functions that check whether a variable has no zeroed fields and zero a field if the corresponding inner attribute is unique. 
 
 \newcommand{\nz}{\mathrm{nz}}
 
@@ -493,7 +493,7 @@ The \textsc{Program} rule states that in order to check a program $\delta_\tau$,
 \begin{mathpar}
 	$\inferrule[Cast]{\tau \succcurlyeq \tau' \\ \nz(Z, \icode{x}) \\ Z; \Gamma, \icode{x} : \tau' \vdash \icode{F} : \tret}{Z; \Gamma, \icode{x} : \tau \vdash \icode{F} : \tret}$
 \end{mathpar}
-\textsc{Duplicate} and \textsc{Forget} allow manipulating variables of shared type in the context as if the context was a set and structural. Note that $!\tau$ is an application of the $!(\cdot)$ function defined in \cref{sec:types} and that unique variables cannot be manipulated in this manner; their exact amount in the context needs to be tracked. Meanwhile, the \textsc{Cast} rule allows applying the subtyping relation also defined in \cref{sec:types}.
+\textsc{Duplicate} and \textsc{Forget} allow manipulating variables of shared type in the context as if the context was a set and structural. Note that $!\tau$ is an application of the $!(\cdot)$ function defined in \Cref{sec:types} and that unique variables cannot be manipulated in this manner; their exact amount in the context needs to be tracked. Meanwhile, the \textsc{Cast} rule allows applying the subtyping relation also defined in \Cref{sec:types}.
 
 \subsubsection{Erasure}
 \begin{mathpar}
@@ -595,7 +595,7 @@ For \textsc{Let-VarApp}, there is a similar split as for \textsc{Let-Pap}: Depen
 	}
 	{Z; \Gamma, [\icode{y} :\ !\tau] \vdash \icode{let x = (A [$\tau_\arrg$?]).ctorᵢ [y]; F} : \tret}$
 \end{mathpar}
-\textsc{Let-Ctor-*} and \textsc{Let-Ctor-!} create a unique and shared value respectively. \textsc{Let-Ctor-!} is needed because for a value that is only used in a shared manner, we do not need to demand unique constructor arguments. Note that in these rules, \icode{[$\tau_\arrg$?]} is ignored, it is not clear how we must choose $[\tau_\arrg']$ and whether we should apply \textsc{Let-Ctor-*} or \textsc{Let-Ctor-!} for typing to succeed. We will resolve this in \cref{sec:ctorinference}.
+\textsc{Let-Ctor-*} and \textsc{Let-Ctor-!} create a unique and shared value respectively. \textsc{Let-Ctor-!} is needed because for a value that is only used in a shared manner, we do not need to demand unique constructor arguments. Note that in these rules, \icode{[$\tau_\arrg$?]} is ignored, it is not clear how we must choose $[\tau_\arrg']$ and whether we should apply \textsc{Let-Ctor-*} or \textsc{Let-Ctor-!} for typing to succeed. We will resolve this in \Cref{sec:ctorinference}.
 
 \begin{mathpar}
 	$\inferrule[Let-Proj-*]{Z(\icode{y}, \icode{i}, \icode{j}) = \bot

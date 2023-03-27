@@ -1,27 +1,29 @@
 \chapter{Implementation}\label{sec:implementation}
 
-We have implemented a type checker for the type theory described in \cref{sec:theory} using Lean 4 at \url{https://github.com/mhuisi/Uniq}, targeting the model IR from \cref{sec:ir}. Note that we have not yet integrated our checker into Lean 4 itself. Unless otherwise stated below, our implementation follows the formal description in \cref{sec:theory}.
+We have implemented a type checker for the type theory described in \Cref{sec:theory} using Lean 4 at \url{https://github.com/mhuisi/Uniq}, targeting the model IR from \Cref{sec:ir}. Note that we have not yet integrated our checker into Lean 4 itself. Unless otherwise stated below, our implementation follows the formal description in \Cref{sec:theory}.
 
 \section{Deviations From Specification}
 
 To represent the global and partial functions $\gamma$, $\delta_\tau$, $\delta$, $\delta_{q_e}$, $\gamma_{*_e}$, as well as $\delta_Q$, we use a map type based on red-black trees. On the other hand, the function $\gamma_*$ that yields unique fields is not represented at all because the codomain is usually infinite, and instead we use isUnique for every escapee in isBorrowed directly.
 
-In order to perform the data flow analysis in \cref{sec:escapeanalysis}, we use Kosaraju's algorithm \citep{sharir_strong-connectivity_1981} to compute strongly connected components in the call graph of functions $c \in \dom(\delta)$, traverse the resulting graph of strongly-connected components in reverse topological sort and then iteratively compute $\delta_Q(c)$ within each strongly connected component of mutually recursive functions until we reach a fixed point. Kosaraju's algorithm seems to be more suited to compute strongly-connected components in a functional language because it needs to maintain less state than Tarjan's algorithm \citep{tarjan_depth-first_1972}.
+In order to perform the data flow analysis in \Cref{sec:escapeanalysis}, we use Kosaraju's algorithm \citep{sharir_strong-connectivity_1981} to compute strongly connected components in the call graph of functions $c \in \dom(\delta)$, traverse the resulting graph of strongly-connected components in reverse topological sort and then iteratively compute $\delta_Q(c)$ within each strongly connected component of mutually recursive functions until we reach a fixed point. Kosaraju's algorithm seems to be more suited to compute strongly-connected components in a functional language because it needs to maintain less state than Tarjan's algorithm \citep{tarjan_depth-first_1972}.
 
-We implement the type checker for the type theory in \cref{sec:checking} as follows:
+We implement the type checker for the type theory in \Cref{sec:checking} as follows:
 \begin{itemize}
 	\item $Z \in \ZeroedFields$ is implemented as a red-black tree based set, $\Gamma$ as a red-black tree based map from Var to AttrType, not a multiset. Since we know that variables are either unique or shared, all variables in $\Gamma$ can either be duplicated and forgotten freely, or there is only one of them in the context. Hence, we do not need to track the exact amount of each variable in the context, only whether it is unique or shared.
 	\item The type rules are implemented by matching on the program and applying the corresponding unique rule.
 	\item When checking whether a type $\tau_1$ is applicable to a type $\tau_2$ in any rule, we do not check for equality, but instead a relation $\tau_1 \rightsquigarrow \tau_2$ that determines whether $\tau_1$ can be made equal to $\tau_2$ after applying the \textsc{Downcast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase} rules.
 	\item When using \textsc{Downcast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase}, it is important that we replace the old type with the new one, lest we could retain a unique attribute in our context after it has already been made shared. Hence, after checking whether $\tau_1 \rightsquigarrow \tau_2$ for $x : \tau_1 \in \Gamma$ in a rule, we set $\Gamma[x \mapsto \tau_2]$ to update the context. This can be understood as applying \textsc{Downcast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase} as needed just before the application of the rule.
 	\item To eliminate \textsc{Duplicate} and \textsc{Forget}, we integrate their application carefully into the other rules by not consuming shared variables in rules that would otherwise consume them.
-	\item We infer the constructor type arguments and the constructor return type to decide how to apply \textsc{Let-Ctor-*} and \textsc{Let-Ctor-!} according to our description below in \cref{sec:ctorinference}.
+	\item We infer the constructor type arguments and the constructor return type to decide how to apply \textsc{Let-Ctor-*} and \textsc{Let-Ctor-!} according to our description below in \Cref{sec:ctorinference}.
 	\item When applying a vector $[\tau_1]$ to $[\tau_2]$ for $[x : \tau_1] \subseteq \Gamma$, we apply \textsc{Downcast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase} while consuming unique variables and updating the context iteratively, so that e.g.\ \lstinline|c x x| fails for $\icode{x} : *\ \blacksquare$ and $\icode{c} : *\ \blacksquare \to *\ \blacksquare \to ...$ or $\icode{c} :\ !\ \blacksquare \to *\ \blacksquare \to ...$.
 \end{itemize}
 
 \section{Constructor Type Inference}\label{sec:ctorinference}
+In this section, we will discuss methods of inference in order to decide how and when to apply the \textsc{Let-Ctor-*} and \textsc{Let-Ctor-!} rules in \Cref{sec:checking}. All methods discussed here are approximations, i.e.\ the \textsc{Let-Ctor-*} and \textsc{Let-Ctor-!} rules defined here using inference can lead to a type error when the corresponding rules in \Cref{sec:checking} will not. However, errors of this kind should be easy to understand and easy to resolve locally in user code.
+
 \subsubsection{Type arguments}
-As discussed briefly in the description of the \icode{ctor} instruction in \cref{sec:ir}, we must infer the attributes in a \icode{(A [τ?]).ctorᵢ [y]} call since Lean cannot provide them and because we need them to decide how to apply the \textsc{Let-Ctor-*} and \textsc{Let-Ctor-!} rules in \cref{sec:typetheory}. 
+As discussed briefly in the description of the \icode{ctor} instruction in \Cref{sec:ir}, we must infer the attributes in a \icode{(A [τ?]).ctorᵢ [y]} call since Lean cannot provide them and because we need them to decide how to apply the \textsc{Let-Ctor-*} and \textsc{Let-Ctor-!} rules in \Cref{sec:typetheory}. 
 
 We will do so in two steps: First, we assign types to type variables based on the types of the arguments provided in \texttt{[y]}. Then, we use the explicit type arguments provided by the user in \icode{[τ?]} to fill the remaining variables that could not be inferred and choose their attributes as strongly as possible, since type arguments that cannot be inferred from the types of \texttt{[y]} are not subject to any uniqueness constraints induced by the vector of constructor arguments. 
 
@@ -90,6 +92,8 @@ Furthermore, we must infer whether the result of a \icode{(A [τ?]).ctorᵢ [y]}
 
 \newcommand{\uniqueUses}{\mathrm{uniqueUses}}
 
+\begingroup
+\allowdisplaybreaks
 \begin{alignat*}{3}
 	&\uniqueUses &&: \mathrlap{\FnBody \times \AttrType \to 2^\Var} \\
 	&\uniqueUses&&(\icode{ret x}, \tau_\ret) = \begin{cases}
@@ -117,6 +121,7 @@ Furthermore, we must infer whether the result of a \icode{(A [τ?]).ctorᵢ [y]}
 			\emptyset & \icode{x} \notin \uniqueUses(\icode{F}, \tau_\ret)
 	\end{cases}}
 \end{alignat*}
+\endgroup
 In the \icode{case' x of ...} case, we denote \texttt{x} as being used uniquely if any of its fields are used uniquely in any of the branches. Arguments to a constructor \icode{ctorᵢ} are regarded as being used uniquely if the constructor itself is used uniquely and the argument type is either unique or a type variable, in which case we assume the argument as being used uniquely. Note that it would be possible to infer this more accurately by inferring which type the type variable will be assigned to from an expected type. If a projection \icode{projᵢⱼ x} is used uniquely, then \texttt{x} is used uniquely as well.
 
 \subsubsection{Adjusted constructor rules}
@@ -132,11 +137,11 @@ Using these inference mechanisms, we can define \textsc{Let-Ctor-*} and \textsc{
 	{Z; \Gamma, [\icode{y} : \tau] \vdash \icode{let x = (A [$\tau_\arrg$?]).ctorᵢ [y]; F} : \tret}$
 \end{mathpar}
 \begin{mathpar}
-	$\inferrule[Let-Ctor-*]{[\nz(Z, \icode{y})]
+	$\inferrule[Let-Ctor-!]{[\nz(Z, \icode{y})]
 		\\ (\gamma(A), \icode{i}, [!\tau], \icode{[$\tau_\arrg$?]}) \in \dom(\inferTypeArgs)
 		\\ [\tau_\arrg'] = \inferTypeArgs(\gamma(A), \icode{i}, [!\tau], \icode{[$\tau_\arrg$?]})
 		\\ \gamma(A)\{A, [\tau_\arrg']\}_\icode{i} = [\tau] \to *x^\kappa_\adt
-		\\ \icode{x} \in \uniqueUses(\icode{F}, \tret)
+		\\ \icode{x} \notin \uniqueUses(\icode{F}, \tret)
 		\\ Z; \Gamma, \icode{z} :\ !\ A\ [!\tau_\arrg'] \vdash \icode{F} : \tret
 	}
 	{Z; \Gamma, [\icode{y} :\ !\tau] \vdash \icode{let x = (A [$\tau_\arrg$?]).ctorᵢ [y]; F} : \tret}$
@@ -147,7 +152,7 @@ Using these inference mechanisms, we can define \textsc{Let-Ctor-*} and \textsc{
 In this section, we will cover the implementations of a few Lean functions, some of which we have seen previously, and demonstrate features of our type checker using them.
 
 \subsubsection{List.map}
-Recall our implementation of \lstinline|List.map| from \cref{sec:lean4}, augmented with uniqueness annotations where we want types to be unique:\\
+Recall our implementation of \lstinline|List.map| from \Cref{sec:lean4}, augmented with uniqueness annotations where we want types to be unique:\\
 \begin{code}
 def List.map (f : α → β) : *List α → *List β
   | []      => []
@@ -186,7 +191,7 @@ Our escape analysis produces the following output:
 Hence, even if the outer input List attribute was shared, we would not be able to borrow the argument, as our escape analysis approximates that the tail of \texttt{xs} can escape, which would be unique if we were to borrow a unique List to \texttt{xs}.
 
 \subsubsection{List.get?}
-We will now cover our implementation of \lstinline|List.get?| from \cref{sec:lean4} to demonstrate constructor argument type inference and an issue with our implementation of borrowing, augmented with uniqueness annotations where we want types to be unique:\\
+We will now cover our implementation of \lstinline|List.get?| from \Cref{sec:lean4} to demonstrate constructor argument type inference and an issue with our implementation of borrowing, augmented with uniqueness annotations where we want types to be unique:\\
 \begin{code}
 def List.get? : List α → Nat → *Option α
   | [],      _     => Option.none
@@ -228,7 +233,7 @@ The program is simply $\delta = \{\texttt{List.get?} \mapsto \lambda\ \texttt{xs
 		\icode{Nat.pred} &\mapsto [!\Nat\ []] &&\to\ !\Nat\ []
 	\end{aligned}\right\}
 \end{align*}
-We assume that Nat and Bool are external types. Furthermore, we provide no escapee information:
+For simplicity, we assume that Nat and Bool are external types. Furthermore, we provide no escapee information:
 \begin{align*}
 	\gamma_{*_e} &= \emptyset\\
 	\delta_{q_e} &= \emptyset
@@ -241,9 +246,10 @@ With these declarations, we can check $\vdash \delta_\tau$. Note that the type f
 This means that a unique argument that is passed to \icode{xs} cannot be borrowed, as one of its unique fields $\icode{xs}_{[11]}$ is approximated to escape by our escape analysis.
 
 \subsubsection{Array.transpose}
-Finally, we will cover a more complex example that shows off nested uniqueness attributes and external types. We intend to check the following function that transposes a two-dimensional square matrix:
+Finally, we will cover a more complex example that shows off nested uniqueness attributes and external types. We intend to check the following function that transposes a two-dimensional square matrix:\\
 \begin{code}
-def Array.T! (xs : *Array (*Array α)) (i j : Nat) : *Array (*Array α) :=
+def Array.T! (xs : *Array (*Array α)) (i j : Nat) 
+  : *Array (*Array α) :=
   let n := Array.size xs
   if i >= n then
     xs
