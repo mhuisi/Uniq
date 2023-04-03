@@ -40,7 +40,7 @@ namespace Checker
               restUsage := restUsage.insert arg
         return restUsage
 
-      | IR.Expr.proj _ _ x =>
+      | IR.Expr.proj _ _ _ x =>
         let mut restUsage := inferUsages rest
         if restUsage.contains x then
           restUsage := restUsage.insert var
@@ -52,7 +52,7 @@ namespace Checker
         usages := usages.union (inferUsages case)
       return usages
     
-    | IR.FnBody.case' var cases =>
+    | IR.FnBody.case' _ var cases =>
       let mut usages := Lean.RBTree.empty
       for case in cases do
         let ⟨_, vars, F⟩ := case
@@ -92,7 +92,6 @@ namespace Checker
     let ⟨paramTypes, _⟩ := Γ.funTypes.find! c
     let some funEscapees := Γ.escapees.find? c
       | return false
-    dbg_trace "found escapees"
     let noUniqueFieldsEscape : ADTName → Array Types.AttrType → Bool := fun name args =>
        funEscapees[i]!.all fun escapee =>
             -- we use args' because we want the actual type args in the provided argument to check
@@ -242,7 +241,7 @@ namespace Checker
       | IR.Expr.vapp x y =>
         if !Γ.nonzero y then
           return false
-        let .func paramTypes funRetType := Γ.types.find! x
+        let some (.func paramTypes funRetType) := Γ.types.find? x
           | return false
         let paramType := paramTypes[0]!
         let restParamTypes := paramTypes.eraseIdx 0
@@ -278,16 +277,24 @@ namespace Checker
         let Γ' := Γ'.adjoin var adtType
         return check Γ' rest retType
 
-      | IR.Expr.proj i j x =>
+      | IR.Expr.proj name i j x =>
         if Γ.isZeroed x i j then
           return false
-        let .adt attr adtName typeArgs := Γ.types.find! x
-          | return false
-        let mut field := substitutedCtors Γ.static adtName typeArgs |>.get! i |>.get! j
         let mut Γ' := Γ
+        let (attr, params) ← 
+          match Γ.types.find? x with
+          | some (Types.AttrType.adt attr _ params) =>
+            (attr, params)
+          | some (Types.AttrType.erased attr) =>
+            let adtDecl := Γ.static.adtDecls.find! name
+            -- all type params are shared
+            (attr, Array.mkArray adtDecl.typeVars.size (.erased .shared))
+          | _ =>
+            return false
+        let mut field := substitutedCtors Γ.static name params |>.get! i |>.get! j
         if attr matches .shared then
           field := field.makeShared
-          Γ' := Γ'.zero attr field.attr x i j
+        Γ' := Γ'.zero attr field.attr x i j
         Γ' := Γ'.adjoin var field
         return check Γ' rest retType
 
@@ -296,12 +303,20 @@ namespace Checker
         return false
       return cases.all (check Γ · retType)
 
-    | IR.FnBody.case' var cases =>
+    | IR.FnBody.case' adtName var cases =>
       if !Γ.nonzero var then
         return false
-      let some (Types.AttrType.adt attr name params) := Γ.types.find? var
-        | return false
-      let ctors := substitutedCtors Γ.static name params
+      let (attr, params) ← 
+        match Γ.types.find? var with
+        | some (Types.AttrType.adt attr _ params) =>
+          (attr, params)
+        | some (Types.AttrType.erased attr) =>
+          let adtDecl := Γ.static.adtDecls.find! adtName
+          -- all type params are shared
+          (attr, Array.mkArray adtDecl.typeVars.size (.erased .shared))
+        | _ =>
+          return false
+      let ctors := substitutedCtors Γ.static adtName params
       let Γ' := Γ.consumeIfUnique! var
       return cases.zip ctors |>.all fun ⟨case, ctor⟩ =>
         let ⟨_, vars, F⟩ := case
@@ -361,14 +376,14 @@ namespace Test.List_map
   def res : Var := 7
 
   def imap : IR.FnBody :=
-    icase' xsvar: #[
+    iList․icase' xsvar: #[
       (iNil, #[],
-        ilet nl ≔ ictor iList⟦#[some <| .erased .shared]⟧iNil @@ #[];
+        ilet nl ≔ .ctor iList #[some <| .erased .shared] iNil #[];
         iret nl),
       (iCons, #[hd, tl],
-        ilet hd' ≔ ivapp fvar @@ hd;
-        ilet tl' ≔ iapp map @@ #[fvar, tl];
-        ilet res ≔ ictor iList⟦#[some <| .erased .shared]⟧iCons @@ #[hd', tl'];
+        ilet hd' ≔ .vapp fvar hd;
+        ilet tl' ≔ .app map  #[fvar, tl];
+        ilet res ≔ .ctor iList #[some <| .erased .shared] iCons #[hd', tl'];
         iret res)
     ]
 
@@ -456,34 +471,34 @@ partial def Array.transposeSquare [Inhabited α] (xs : Array (Array α)) (i j : 
   def r2 : Var := 26
 
   def itranspose : IR.FnBody :=
-    ilet one ≔ iapp mkOne @@ #[];
-    ilet two ≔ iapp mkTwo @@ #[];
-    ilet n ≔ iapp size @@ #[xs0];
-    ilet b1 ≔ iapp geq @@ #[i, n];
+    ilet one ≔ .app mkOne #[];
+    ilet two ≔ .app mkTwo #[];
+    ilet n ≔ .app size #[xs0];
+    ilet b1 ≔ .app geq #[i, n];
     icase b1: #[
       ( iret xs0),
-      ( ilet b2 ≔ iapp geq @@ #[j, n];
+      ( ilet b2 ≔ .app geq #[j, n];
         icase b2: #[
-          ( ilet iadd1 ≔ iapp add @@ #[i, one];
-            ilet iadd2 ≔ iapp add @@ #[i, two];
-            ilet r1 ≔ iapp transpose @@ #[xs0, iadd1, iadd2];
+          ( ilet iadd1 ≔ .app add #[i, one];
+            ilet iadd2 ≔ .app add #[i, two];
+            ilet r1 ≔ .app transpose #[xs0, iadd1, iadd2];
             iret r1),
-          ( ilet empty1 ≔ iapp mkEmpty @@ #[];
-            ilet empty2 ≔ iapp mkEmpty @@ #[];
-            ilet p1 ≔ iapp swap @@ #[xs0, i, empty1];
-            ilet xs1 ≔ iproj mkTuple#0 @@ p1;
-            ilet xs_i0 ≔ iproj mkTuple#1 @@ p1;
-            ilet p2 ≔ iapp swap @@ #[xs1, j, empty2];
-            ilet xs2 ≔ iproj mkTuple#0 @@ p2;
-            ilet xs_j0 ≔ iproj mkTuple#1 @@ p2;
-            ilet x ≔ iapp get @@ #[xs_i0, j];
-            ilet x' ≔ iapp get @@ #[xs_j0, i];
-            ilet xs_i1 ≔ iapp set @@ #[xs_i0, j, x'];
-            ilet xs_j1 ≔ iapp set @@ #[xs_j0, i, x];
-            ilet xs3 ≔ iapp set' @@ #[xs2, i, xs_i1];
-            ilet xs4 ≔ iapp set' @@ #[xs3, j, xs_j1];
-            ilet jadd1 ≔ iapp add @@ #[j, one];
-            ilet r2 ≔ iapp transpose @@ #[xs4, i, jadd1];
+          ( ilet empty1 ≔ .app mkEmpty #[];
+            ilet empty2 ≔ .app mkEmpty #[];
+            ilet p1 ≔ .app swap #[xs0, i, empty1];
+            ilet xs1 ≔ .proj Prod mkTuple 0 p1;
+            ilet xs_i0 ≔ .proj Prod mkTuple 1 p1;
+            ilet p2 ≔ .app swap #[xs1, j, empty2];
+            ilet xs2 ≔ .proj Prod mkTuple 0 p2;
+            ilet xs_j0 ≔ .proj Prod mkTuple 1 p2;
+            ilet x ≔ .app get #[xs_i0, j];
+            ilet x' ≔ .app get #[xs_j0, i];
+            ilet xs_i1 ≔ .app set #[xs_i0, j, x'];
+            ilet xs_j1 ≔ .app set #[xs_j0, i, x];
+            ilet xs3 ≔ .app set' #[xs2, i, xs_i1];
+            ilet xs4 ≔ .app set' #[xs3, j, xs_j1];
+            ilet jadd1 ≔ .app add #[j, one];
+            ilet r2 ≔ .app transpose #[xs4, i, jadd1];
             iret r2)
         ])
     ]
@@ -600,19 +615,19 @@ namespace Test.List_get
   def somevar : Var := 9
 
   def iget? : IR.FnBody :=
-    icase' xsvar: #[
+    iList․icase' xsvar: #[
       (iNil, #[],
-        ilet nonevar ≔ ictor iOption⟦#[some <| .erased .shared]⟧iNone @@ #[];
+        ilet nonevar ≔ .ctor iOption #[some <| .erased .shared] iNone #[];
         iret nonevar),
       (iCons, #[head, tail],
-        ilet zero ≔ iapp mkZero @@ #[];
-        ilet eqr ≔ iapp natEq @@ #[ivar, zero];
+        ilet zero ≔ .app mkZero #[];
+        ilet eqr ≔ .app natEq #[ivar, zero];
         icase eqr: #[
-          ilet predr ≔ iapp predNat @@ #[ivar];
-          ilet recr ≔ iapp getList @@ #[tail, predr];
+          ilet predr ≔ .app predNat #[ivar];
+          ilet recr ≔ .app getList #[tail, predr];
           iret recr,
           ----
-          ilet somevar ≔ ictor iOption⟦#[none]⟧iSome @@ #[head];
+          ilet somevar ≔ .ctor iOption #[none] iSome #[head];
           iret somevar
         ])
     ]

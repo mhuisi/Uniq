@@ -1,12 +1,12 @@
 \chapter{Future Work}\label{sec:futurework}
-In this chapter, we will quickly cover work that is still left to be done in order to integrate our type theory with Lean 4, as well as work that would greatly improve the user-experience of working with the type theory.
+In this chapter, we will briefly cover work that is still left to be done in order to integrate our type theory with Lean 4, as well as work that would greatly improve the user-experience of working with our type theory.
 
 \section{Type Inference}\label{sec:inference}
-We have not covered the topic of type inference at all so far, but some amount of type inference is necessary to integrate our type theory with Lean 4. During the compilation process, the Lean 4 compiler toolchain may create additional auxiliary functions that users cannot provide type annotations for: 
+We have not covered the topic of type inference at all thus far, but some amount of type inference is necessary to integrate our type theory with Lean 4. During the compilation process, the Lean 4 compiler toolchain may create additional auxiliary functions that users cannot provide type annotations for: 
 \begin{itemize}
 	\item In monadic control flow, Lean may create join points and other auxiliary functions to represent complex control flow (\lstinline|break|, \lstinline|continue|, early \lstinline|return|, \lstinline|if| blocks).
 	\item As argued in \Cref{sec:ir}, functions that act as join points may get replaced by dedicated join point instructions that callers can directly jump to.
-	\item If a function does not use all of its parameters, then an auxiliary function using only live parameters is created. Note that this may occur often because of LCNF's monomorphization step, where type parameters and other instances of dependent types are erased.
+	\item If a function does not use all of its parameters, then an auxiliary function using only live parameters is created. Note that this may occur often because of LCNF's type erasure step.
 \end{itemize}
 Fortunately, in all of these cases, we have access to plenty of surrounding context to determine what the respective uniqueness attributes for an auxiliary function should be.
 
@@ -21,43 +21,43 @@ In \Cref{sec:implementation}, we implement a type checker for our type theory an
 \begin{enumerate}
 	\item A form of type inference that can deal with the kinds of auxiliary functions described in \Cref{sec:inference} needs to be implemented.
 	\item A notation to provide uniqueness annotations in types needs to be implemented. Types annotated with $*$ are unique, types without an annotation are shared. The notation should set the \lstinline|mdata| field of Lean 4's \lstinline|Expr|, which can be used to store auxiliary data.
-	\item The \lstinline|mdata| field needs to be handled correctly in the compiler toolchain so that it is preserved until the type checker runs at the end of the pipeline. As of the writing of this thesis, the function that converts Lean types to LCNF types erases expressions annotated with \lstinline|mdata|.
+	\item The \lstinline|mdata| field needs to be handled correctly in the compiler toolchain so that it is preserved until our type checker runs at the end of the pipeline. As of the writing of this thesis, the function that converts Lean types to LCNF types erases expressions annotated with \lstinline|mdata|.
 	\item The functions $\delta_{q_e}$ from \Cref{sec:escapeanalysis} and $\gamma_{*_e}$ from \Cref{sec:borrowing} need to be provided using a custom annotation in Lean 4's annotation mechanism, where declarations, including stubs for external functions and types, can be provided with auxiliary data by users.
 	\item Lean's LCNF must be translated to our model IR and our model type system while preserving information about the mapping.
 	\item Our type checker must be adjusted to produce reasonable error codes. As of now, it only yields a boolean indicating whether a given environment type-checks. Then, if there is a uniqueness type error, using the aforementioned mapping, the error for our model IR must be translated to a corresponding LCNF error.
 	\item In addition to checking whether a given environment type-checks, our type checker should accumulate information about the scope in which a variable is unique. After translating this information back to LCNF, it can be used in subsequent optimizations, for example eliminating the reference count check described in \Cref{sec:beans}.
 \end{enumerate}
 
-\section{Borrowing}
-In \Cref{sec:borrowingbackground}, we saw that implementing more powerful borrowing mechanisms would be useful. In \Cref{sec:examples}, we found that basing borrowing on an escape analysis is of limited utility when working with recursive types. Hence, in order to implement a user-friendly uniqueness type theory, it is essential that the topic of borrowing is re-visited in the future.
+\section{Borrowing}\label{sec:futureborrowing}
+In \Cref{sec:borrowingbackground}, we saw that implementing more powerful borrowing mechanisms would be useful. In \Cref{sec:examples}, we found that our escape analysis is of limited utility when working with recursive types. Hence, in order to implement a user-friendly uniqueness type theory, it is essential that the topic of borrowing is re-visited in the future.
 
 \cite{spiwack_linearly_2022} and \cite{weiss_oxide_2021} may provide some guidance for implementing a borrowing mechanism that handles more cases than the one described in this thesis.
 
-Another possible approach would be to augment the escapees in \Cref{sec:escapeanalysis} with a Kleene star and a union operator, or an ``any path`` operator, and have $\mathbb{B}_\cdot(\cdot, \cdot, \cdot)$ from \Cref{sec:borrowing} generate patterns that describe the uniqueness of the fields of an algebraic data type. Then, checking whether any unique fields escape amounts to checking whether the intersection of these patterns is nonempty.
+Another possible approach would be to augment the escapees in \Cref{sec:escapeanalysis} with a Kleene star and a union operator, or an ``any path``-operator, and have $\mathbb{B}_\cdot(\cdot, \cdot, \cdot)$ from \Cref{sec:borrowing} generate patterns that describe the uniqueness of the fields of an algebraic data type. Then, checking whether any unique fields escape amounts to checking whether the intersection of these patterns is nonempty.
 
 \section{Higher-Order Functions}
 We have discussed the topic of higher-order functions in uniqueness type systems at length in \Cref{sec:uniqueness} and \Cref{sec:hof}, but chose to disregard uniqueness of functions for now in \Cref{sec:types} by assuming every higher-order function as shared. 
 
-This situation is far from optimal because Lean code uses higher-order functions for type classes, monadic code, as well as tricks that guarantee uniqueness for unique values within other unique values, like the \lstinline|update| trick discussed in \Cref{sec:beans}. 
+This situation is far from optimal because Lean code uses higher-order functions for type classes, for monadic code, as well as for tricks that guarantee uniqueness for unique values within other unique values, like the \lstinline|update| trick discussed in \Cref{sec:beans}. 
 
-As discussed in \Cref{sec:hof}, we believe that the approach that deleverages the uniqueness of values in a function closure is the most viable, though it requires a change to the runtime in that higher-order functions need to store two function pointers as opposed to just one. Additionally, several other components in \Cref{sec:theory} must be adjusted as well, as subtyping must now account for co- and contravariant type parameters and propagation must be capable of propagating through higher-order functions. Similarly, borrowing most be adjusted with unique functions in mind.
+As described in \Cref{sec:hof}, we believe that the approach that deleverages the uniqueness of values in a function closure is the most viable, though it requires a change to the runtime in that higher-order functions need to store two function pointers as opposed to just one. Additionally, several other components in \Cref{sec:theory} must be adjusted as well, since subtyping must now account for co- and contravariant type parameters and propagation must be capable of propagating through higher-order functions. Similarly, borrowing most be adjusted with unique functions in mind.
 
 \section{Polymorphism}
-Another topic we have not touched on at all is attribute polymorphism. Part of the reason for this is that polymorphism results in somewhat unintuitive behaviour if the coercion between unique and shared values is implicit, as in our system in \Cref{sec:theory}, since polymorphic functions may both silently downcast a shared value and then propagate the sharedness through the rest of the code. In this case, using different function names would unveil the mistake early on.
+Another topic we have not touched on at all is attribute polymorphism. Part of the reason for this is that polymorphism results in somewhat unintuitive behaviour if the coercion between unique and shared values is implicit, as in our system in \Cref{sec:theory}, since polymorphic functions may both silently cast to a shared value and then propagate the sharedness through the rest of the code. In this case, using different function names would unveil the mistake early on.
 
 However, if the coercion is made explicit, then mistakes would always be spotted early on, as a unique value can never be passed to a shared parameter unless users acknowledge it with an explicit instruction. Then, shared and unique functions would not need to be named differently, and polymorphism would be a useful thing to have.
 
 What follows are some brief and incomplete thoughts on what would be required to make polymorphism work:
 \begin{itemize}
-	\item In order to be substitutable for both a unique and a shared attribute, variables that are polymorphic in their attribute can only be passed to polymorphic parameters, but must be used uniquely.
+	\item In order to be substitutable for both a unique and a shared attribute, variables that are polymorphic in their attribute can only be passed to polymorphic parameters, but must otherwise be used uniquely.
 	\item Variables polymorphic in their attribute cannot be updated destructively.
-	\item Borrowed parameters should always be shared, not polymorphic, since both shared and unique values can be passed to the parameter, while it is still allowed to share the parameter within the function body as long as it does not escape.
-	\item There needs to be a mechanism to connect the uniqueness of two attribute variables and state ``this component of the return type can be unique if this parameter is unique'', similar to Clean's $\leq$ operator or the boolean connectives discussed by \cite{de_vries_making_2009}.
+	\item Borrowed parameters should always be shared, not polymorphic, since both shared and unique values can be passed to the parameter, while it is still allowed to share the borrowed parameter within the function body as long as it does not escape.
+	\item There needs to be a mechanism to connect the uniqueness of two attribute variables and state that ``this component of the return type can be unique if this parameter is unique'', similar to Clean's $\leq$ operator or the boolean connectives discussed by \cite{de_vries_making_2009}.
 	\item Uniqueness attributes in ADTs should propagate the attribute variable of the outer value when the respective field is accessed.
-	\item Ideally, the fact that shared types cannot contain unique ones should not have to be explicitly reflected everywhere in the type annotation of a function; it should be assumed implicitly, or at least the annotational clutter that is present in de Vries' implementations of polymorphism should be reduced somehow.
+	\item Ideally, the fact that shared types cannot contain unique ones should not have to be explicitly reflected everywhere in the type annotation of a function; it should be assumed implicitly, or at least the annotational clutter that is present in de Vries' implementations of polymorphism should somehow be reduced.
 \end{itemize}
 
-An alternative to polymorphism would be to provide facilities that generate function declarations for all valid attribute annotations after monomorphization. Since there are only two attributes and users likely do not care much about the concrete uniqueness annotations except that they should make their code type check, generating functions for all possible annotations may be a worthwhile compromise, especially as systems that support attribute polymorphism tend to produce complex annotations that are difficult to grasp.
+An alternative to polymorphism would be to provide facilities that generate function declarations for all valid attribute annotations after type erasure. Since there are only two attributes and users likely do not care much about the concrete uniqueness annotations except that they should make their code type-check, generating functions for all possible annotations may be a worthwhile compromise, especially as systems that support attribute polymorphism tend to produce fairly complex annotations.
 
 \section{Proof of Soundness}
-In all of the previous sections, we have only argued informally about the soundness of our type system, i.e.\ that variables of unique type are indeed referenced uniquely. A formal proof of soundness of our system is still future work.
+In all of the previous sections, we have only argued informally about the soundness of our type system, i.e.\ that variables of unique type are indeed referenced uniquely. A formal proof of soundness of our system is future work.

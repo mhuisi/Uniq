@@ -3,9 +3,9 @@
 \section{Lean 4 Theorem Prover}\label{sec:lean4}
 Lean 4 is a proof assistant and programming language developed primarily by Leonardo de Moura at Microsoft Research and Sebastian Ullrich at KIT with numerous open source contributions by many other authors.
 
-Up to and including version 3, Lean served only as a proof assistant, i.e.\ an interactive tool where users can input proofs that are then checked by the proof assistant. Many proof assistants also implement proof-generating automation, so-called ``tactic languages'', to make the task of writing a perfectly formal proof by hand less tedious. In Lean 3, the previous version of Lean, the same term language was used for proofs, theorem statements, definitions, programs, type declarations, specifications, and implementing automation. We will go into some detail on how Lean uses a single unified language for all of these things in \Cref{sec:dtt}. For automation, the term language was also evaluated by a separate interpreter for more efficient execution.
+Up to and including version 3, Lean served mostly only as a proof assistant, i.e.\ an interactive tool where users can input proofs that are then checked by the proof assistant. Many proof assistants also implement proof-generating automation, so-called ``tactic languages'', to make the task of writing a perfectly formal proof by hand less tedious. Already in Lean 3, the previous version of Lean, the same term language was used for proofs, theorem statements, definitions, programs, type declarations, specifications, and implementing automation. We will go into some detail on how Lean uses a single unified language for all of these things in \Cref{sec:dtt}. For automation, the term language was also evaluated by a separate interpreter for more efficient execution.
 
-Unfortunately, evaluating the term language using a separate interpreter would still yield inadequate performance, both for implementing more demanding automation and for implementing real world programs, which meant that such demanding programs were written in C++ instead and then made available to Lean using a foreign-function interface (FFI) \citep{ullrich_counting_2020}.
+Unfortunately, evaluating the term language using a separate interpreter would still yield inadequate performance, both for implementing more demanding automation and for implementing real world programs, which meant that such demanding programs were written in C++ instead and then made available to Lean using a foreign-function interface \citep{ullrich_counting_2020}.
 
 To improve on this, Lean 4 now implements its own self-hosted compiler toolchain for both a C backend and a work-in-progress LLVM \citep{lattner_llvm_2004} backend, including its own IR, optimization pipeline and custom garbage collection algorithm. Being almost entirely self-hosted, Lean 4 is now also well capable of being used as a general purpose programming language.
 
@@ -36,9 +36,9 @@ def Array.groupBy (p : α → α → Ordering) (xs : Array α)
   return result
 \end{code}
 
-\lstinline|Array.groupBy| is implemented using an imperative domain-specific language (DSL) based on do-notation \citep{ullrich_beyond_2022}. It takes a relation \lstinline|p| that yields an \lstinline|Ordering|, i.e.\ whether the first argument is greater than, smaller than or equal to the second argument, as well as the array to group the elements of. It returns a red-black map ordered by \lstinline|p|, where the keys are arbitrary representatives of the group and the values denote groups \lstinline|Array α| of \lstinline|p|-equivalent values.
+\lstinline|Array.groupBy| is implemented using an imperative domain-specific language (DSL) based on do-notation \citep{ullrich_beyond_2022}. It takes a relation \lstinline|p| that yields an \lstinline|Ordering|, i.e.\ whether the first argument is greater than, smaller than or equal to the second argument, as well as the array to group the elements of. It returns a red-black tree based map ordered by \lstinline|p|, where the keys are arbitrary representatives of the group and the values denote groups with type \lstinline|Array α| of \lstinline|p|-equivalent values.
 
-In order to use do-notation, we need to run the code in a monad. Since we do not intend to accumulate any effects and only use do-notation for its imperative domain-specific language (DSL), we use the \lstinline|Id| monad, entering it using \lstinline|Id.run|. First, we initialize a mutable but empty red-black map, denoting our result. Then, we iterate over every element \lstinline|x| in the provided array and look for a group in the current result that is \lstinline|p|-equivalent to \lstinline|x|. If we find such a group, we store it in \lstinline|group|. Otherwise, we allocate a new group for elements \lstinline|p|-equivalent to \lstinline|x| using the call to \lstinline|Option.getD|, which returns the first element if it was equal to \lstinline|some x| and otherwise returns the second element if it was equal to \lstinline|none|. Then, we add \lstinline|x| itself to the group and re-insert it into our mutable \lstinline|result| map. At the end, we return the accumulated \lstinline|result| map.
+In order to use do-notation, we need to run the code in a monad. Since we do not intend to accumulate any effects and only use do-notation for its imperative domain-specific language, we use the \lstinline|Id| monad, entering it using \lstinline|Id.run|. First, we initialize a mutable but empty red-black tree based map, denoting our result. Then, we iterate over every element \lstinline|x| in the provided array and look for a group in the current result that is \lstinline|p|-equivalent to \lstinline|x|. If we find such a group, we store it in \lstinline|group|. Otherwise, we allocate a new empty group \lstinline|#[]| for elements \lstinline|p|-equivalent to \lstinline|x| using the call to \lstinline|Option.getD|, which returns the first element if it was equal to \lstinline|some x| and otherwise returns the second element if it was equal to \lstinline|none|. Then, we add \lstinline|x| itself to the group and re-insert it into our mutable \lstinline|result| map. At the end, we return the accumulated \lstinline|result| map.
 
 \subsubsection{Imperative DSL}
 This piece of imperative code is implemented as a DSL, i.e.\ the imperative code is translated to a functional equivalent.
@@ -47,7 +47,7 @@ One may reasonably wonder why one would ever use a purely functional language to
 
 In fact, if we were to write a proof about \lstinline|Array.groupBy|, the first thing we would likely do is fold away the syntactical imperative layer in order to uncover the purely functional term representing the program, without ever having to think about loop invariants or state.
 
-One may also wonder whether code written in this imperative manner is about as efficient as real imperative code. Because of the mechanism described in \Cref{sec:beans}, this is indeed the case if the code in question is written in such a way that every value is uniquely referenced, which is usually the case for the kind of code that one would also write in an imperative language. Importantly, functional code will benefit from this as well, which means that we can write compositional and functional code that also updates values in-place instead of making new allocations in every single combinator. 
+One may also wonder whether code written in this imperative manner is about as efficient as real imperative code. Because of the mechanism that we will describe in \Cref{sec:beans}, this is indeed the case if the code in question is written in such a way that every value is uniquely referenced, which is usually the case for the kind of code that one would also write in an imperative language. Importantly, functional code will benefit from this as well, which means that we can write compositional and functional code that also updates values in-place instead of making new allocations in every single combinator. 
 
 It must however be noted that our implementation of \lstinline|Array.groupBy| is actually an example of an imperative implementation that is unexpectedly inefficient. We will resolve this inefficiency in \Cref{sec:beans} when it is instrumental to do so.
 
@@ -68,12 +68,12 @@ There are several mechanisms required to make this work:
 	\item Support for inductive type families, which are essentially algebraic data types where each constructor creates a term in a type that can be parametrized by other terms. For example, we might declare a type $\lambda \alpha : \mathrm{Type}.\ \lambda n : \mathbb{N}.\ \mathrm{Vec}\ \alpha\ n$ for lists over a type $\alpha$ of size $n$ with constructors $\mathrm{nil} : \mathrm{Vec}\ \alpha\ 0$ and $\mathrm{cons} : \forall n : \mathbb{N}.\ \alpha \to \mathrm{Vec}\ \alpha\ n \to \mathrm{Vec}\ \alpha\ (n+1)$. Each inductive type family also yields a recursion principle that allows for pattern matching and using recursion on the value of a type to compute an accumulate value.
 \end{enumerate}
 
-In addition to $\forall x : \tau_1.\ \tau_2(x)$, dependent type theories also always support dependent sigma types $(x : \tau_1) \times \tau_2(x)$ and sum types $\tau_1 + \tau_2$.
+In addition to $\forall x : \tau_1.\ \tau_2(x)$, dependent type theories also support dependent sigma types $(x : \tau_1) \times \tau_2(x)$ and sum types $\tau_1 + \tau_2$.
 
 \subsubsection{Propositions}
 For convenience, Lean's type theory also supports a separate type universe of propositions $\mathbb{P}$, the terms of which are types $p : \mathbb{P}$ with proof terms $h : p$ witnessing the truth of the proposition $p$. For example, if $\mathrm{refl} : \forall x.\ x = x$, we have $(\mathrm{refl}\ n) : (n = n) : \mathbb{P}$ and $(\mathrm{refl}\ n) : (n + 1 - 1 = n) : \mathbb{P}$ for $n : \mathbb{N}$, as $n + 1 - 1 \rightsquigarrow n$ by reduction. Meanwhile, there is no term $h : (n = n + 1) : \mathbb{P}$. For less trivial propositions, we use the recursion principles of inductive type families, which become induction principles if the accumulated value is a proposition $p : \mathbb{P}$. 
 
-What distinguishes propositions $p : \mathbb{P}$ from other types is that $\mathbb{P}$ is impredicative and proof-irrelevant, i.e.\ whenever we quantify over a proposition $p : \mathbb{P}$ s.t.\ $\forall x.\ p$, the resulting type is again a proposition, and for proofs $h_1, h_2 : p$, we have $h_1 = h_2$. In other words, propositions are contained to $\mathbb{P}$ and all proofs of a proposition are considered equal, i.e.\ only their existence is relevant, not the concrete content of the proof. Hence, proofs are inherently non-computational; since the content of a proof is irrelevant, it can be erased. Lean then also introduces additional non-computational classical axioms into its universe of propositions $\mathbb{P}$, most prominently the law of the excluded middle $p \lor \lnot p$.
+What distinguishes propositions $p : \mathbb{P}$ from other types is that $\mathbb{P}$ is impredicative and proof-irrelevant, i.e.\ whenever we quantify over a proposition $p : \mathbb{P}$ s.t.\ $\forall x.\ p$, the resulting type is again a proposition, and for proofs $h_1, h_2 : p$, we have $h_1 = h_2$. In other words, propositions are contained to $\mathbb{P}$ and all proofs of a proposition are considered equal, i.e.\ only their existence is relevant, not the concrete content of the proof. Hence, proofs are inherently non-computational; since the content of a proof is irrelevant, it can be erased. Lean also introduces additional non-computational classical axioms into its universe of propositions $\mathbb{P}$, most prominently the law of the excluded middle $p \lor \lnot p$.
 
 \subsubsection{Combined power}
 Putting all of these mechanisms together yields a type theory powerful enough to declare types like $\mathrm{Vec}\ \alpha\ n$ and all the usual objects that are used in mathematics, as well as logical operators like $\cdot \land \cdot$, $\exists x.\ p(x)$, $\cdot = \cdot$ and even well-founded recursion. Additionally, the term language is strong enough to write arbitrary programs, as well as classical proofs within $\mathbb{P}$.
@@ -111,19 +111,22 @@ Since very early on in the development of Lean 4, the Lean compiler has compiled
 	f &\in \Fn_\lambda &\Coloneqq&\ \lambda\ \overline{\texttt{y}}.\ \icode{F} \\
 	\delta &\in \Program_\lambda &=&\ \Const_\lambda \rightharpoonup \Fn_\lambda
 \end{alignat*}
+
 $\overline{\texttt{y}}$ is a vector of variables \icode{y}. Expressions are full applications \icode{c\ $\overline{\texttt{y}}$}, partial applications \icode{pap c\ $\overline{\texttt{y}}$}, variable applications \icode{x y} of a variable \icode{y} to a higher-order function \icode{x} created by \icode{pap}, constructor applications \icode{ctorᵢ\ $\overline{\texttt{y}}$} for a constructor \icode{i} or projections \icode{projⱼ y} for a field \icode{j} in \icode{y}. Function bodies consist of \icode{ret x}, \icode{let x := e; F} and a case-instruction \icode{case x of\ $\overline{\texttt{F}}$} that makes \icode{x} denote the \icode{i}-th constructor in \icode{$\overline{\texttt{F}}$ᵢ}. All functions are lifted out to a global map $\delta \in \Program_\lambda$.
 
+\pagebreak % to make the next page less spacy
 \subsubsection{Reference-counted IR}
 The Lean 4 compiler then inserts the following additional impure instructions into code in pure IR form:
 \begin{alignat*}{3}
 	\icode{e} &\in \Expr &\Coloneqq&\ \dots \sep \icode{reset x} \sep \icode{reuse x in ctorᵢ\ $\overline{\texttt{y}}$} \\
 	\icode{F} &\in \FnBody\ &\Coloneqq&\ \dots \sep \icode{inc x; F} \sep \icode{dec x; F}
 \end{alignat*}
+
 The resulting IR is also commonly called ``the reference-counted IR''. We will cover \icode{reset x} and \icode{reuse x in ctorᵢ\ $\overline{\texttt{y}}$} in detail in \Cref{sec:beans}. \icode{inc x; F} and \icode{dec x; F} increment and decrement the reference count of the value \texttt{x} respectively. When the reference count reaches 0, the value in question is not referenced anymore and can be freed safely. Since Lean 4 is a strict purely functional programming language, there can be no reference cycles.
 
 When compiling the pure IR to the reference-counted IR, the Lean compiler performs additional optimizations: Parameters are sometimes inferred as ``borrowed'', which means that the caller is keeping these parameters alive, and so they need not be reference-counted in the callee. We will encounter a similar but slightly different notion of ``borrowing'' in \Cref{sec:borrowingbackground}, albeit both have in common that the caller is managing a resource for a callee.
 
-In addition to the instructions described by \cite{ullrich_counting_2020}, Lean's implementation of this IR also supports operations for boxing and unboxing of scalar values \citep{henglein_formally_1994}, as well as join point declarations and corresponding jump instructions that allow the re-joining of control flow branches \citep{maurer_compiling_2017}. In other words, Lean's IR is implemented in A-normal form as described by \cite{maurer_compiling_2017}, where functions can only take variables as arguments, nested expressions are factored out into let-expressions and join points are generated where possible.
+In addition to the instructions described by \cite{ullrich_counting_2020}, Lean's implementation of this IR also supports operations for boxing and unboxing of scalar values \citep{henglein_formally_1994}, as well as join point declarations and corresponding jump instructions that allow the re-joining of control flow branches \citep{maurer_compiling_2017}. In other words, Lean's IR is implemented in A-normal form as described by \cite{maurer_compiling_2017}, where functions can only take variables as arguments, nested expressions are factored out into let-expressions and join point declarations are generated where possible.
 
 We will henceforth ignore boxing as an implementation detail and briefly discuss join points in \Cref{sec:ir} and \Cref{sec:inference}.
 
@@ -149,25 +152,26 @@ In the current rewrite of the Lean 4 compiler toolchain that is still work-in-pr
 	\icode{v} &\in \LetValue_\LCNF\ &\Coloneqq&\ \blacksquare
 		\sep \icode{D\ $\overline{\texttt{a}}$}
 		\sep \icode{y\ $\overline{\texttt{a}}$}
-		\sep \icode{proj$_\texttt{j}$ y} \\
+		\sep \icode{D.proj$_\texttt{j}$ y} \\
 	\icode{c} &\in \Case_\LCNF &\Coloneqq&\ \icode{ctorᵢ\ $\overline{\texttt{(y}\ \texttt{:}\ \tau_\texttt{y}\texttt{)}}$ ⇒ K} 
 		\sep \icode{default ⇒ K} \\
 	\icode{K} &\in \Code_\LCNF &\Coloneqq&\ \icode{let (x :\ $\tau$) := v; K} \\
 		&&&\enspace\sep \icode{((def x\ $\overline{\texttt{(y}\ \texttt{:}\ \tau_\texttt{y}\texttt{)}}$ := K$_\texttt{x}$) :\ $\tau$); K} \\
 		&&&\enspace\sep \icode{((jpdef x\ $\overline{\texttt{(y}\ \texttt{:}\ \tau_\texttt{y}\texttt{)}}$ := K$_\texttt{x}$) :\ $\tau$); K} \\
 		&&&\enspace\sep \icode{jmp x\ $\overline{\texttt{a}}$} \\
-		&&&\enspace\sep \icode{((case x of\ $\overline{\texttt{c}}$) :\ $\tau$)} \\
+		&&&\enspace\sep \icode{((D.case x of\ $\overline{\texttt{c}}$) :\ $\tau$)} \\
 		&&&\enspace\sep \icode{ret x} \\
 	\icode{d} &\in \Decl_\LCNF &\Coloneqq&\ (\lambda \overline{\texttt{(y}\ \texttt{:}\ \tau_\texttt{y}\texttt{)}}.\ \texttt{K}\ :\ \tau) \\
 	\delta &\in \Program_\LCNF &=&\ \DeclName_\LCNF \rightharpoonup \Decl_\LCNF
 \end{alignat*}
+
 We have omitted some technical details from Lean's implementation of this grammar that are not relevant to this thesis. 
 
-LeanType denotes arbitrary dependent types in the form of generic Lean expressions. Declarations, variables, constructors and projections are all identified by names in their respective syntactical category. Arguments to declarations can either be erased ($\blacksquare$), variables or types. Let values can either be erased, an application of a constant declaration, an application of arguments to a variable that may contain a declaration or a function, or a projection of a variable that stores a type with only a single constructor. Cases are either destructuring patterns that match against a constructor \texttt{i} and denote its fields using variables $\overline{\texttt{y}}$ with types $\overline{\tau}$, or a \icode{default} case.
+LeanType denotes arbitrary dependent types in the form of generic Lean expressions. Declarations, variables, constructors and projections are all identified by names in their respective syntactical category. Arguments to declarations can either be erased ($\blacksquare$), variables or types. Let values can either be erased, an application of a constant declaration \icode{D\ $\overline{\texttt{a}}$}, an application \icode{y\ $\overline{\texttt{a}}$} of arguments $\overline{\texttt{a}}$ to a variable \texttt{y} that may contain a declaration or a function, or a projection \icode{D.proj$_\texttt{j}$ y} of a variable \texttt{y} that stores a type with only a single constructor. Cases are either destructuring patterns \icode{ctorᵢ\ $\overline{\texttt{(y}\ \texttt{:}\ \tau_\texttt{y}\texttt{)}}$ ⇒ K} that match against a constructor \texttt{i} and denote its fields using variables $\overline{\texttt{y}}$ with types $\overline{\tau_\texttt{y}}$, or a \icode{default} case.
 
-Code instructions can either be \icode{let} instructions, function definitions \icode{def} of type $\tau$, join point declarations \icode{jpdef} of type $\tau$, \icode{jmp} instructions that jump to a given join point with a given vector of arguments, \icode{case} or \icode{ret} instructions.
+Code instructions can either be \icode{let} instructions, function definitions \icode{def} of type $\tau$, join point declarations \icode{jpdef} of type $\tau$, \icode{jmp} instructions that jump to a given join point \texttt{x} with a given vector of arguments $\overline{\texttt{a}}$, \icode{case} or \icode{ret} instructions.
 
-After compiling Lean code to LCNF, the resulting LCNF code is simplified by many of the same optimizations that are applied to Lean code in the old compiler that works directly on Lean expressions. Near the end of the optimization phase, type dependencies, computationally irrelevant terms and a few other types are heuristically erased and the resulting LCNF code can be converted to the pure IR. In the future, both the pure and the reference-counted IR will be replaced by a closely related LCNF-equivalent as well. 
+After compiling Lean code to LCNF, the resulting LCNF code is simplified by many of the same optimizations that are applied to Lean code in the current compiler that works directly on Lean expressions. Near the end of the optimization phase, type dependencies, computationally irrelevant terms and a few other types are heuristically erased and the resulting LCNF code can be converted to the pure IR. In the future, both the pure and the reference-counted IR will be replaced by a closely related LCNF-equivalent as well. 
 
 \section{Destructive Updates}\label{sec:beans}
 In \Cref{sec:irs}, we saw that the Lean 4 compiler inserts instructions \icode{let x := reset y} and \icode{let z := reuse x in ctorᵢ\ $\overline{\texttt{y}}$} when compiling the pure IR to the reference-counted IR. These instructions are used to perform so-called destructive updates: In a purely functional language, if a value is only referenced by a single function, then that function can safely update the value in-place without the mutation being observed by other functions, thus retaining both purity and efficiency. It is obvious that if we are using reference counting for garbage collection, then we can use the reference count for performing destructive updates by checking that the reference count of the value is equal to 1.
@@ -175,7 +179,7 @@ In \Cref{sec:irs}, we saw that the Lean 4 compiler inserts instructions \icode{l
 \subsubsection{Reset and reuse}
 One important question remains: In a purely functional language, what constitutes an update? After all, there is no dedicated instruction that performs updates. To answer this question, \cite{ullrich_counting_2020} introduce what they call ``the resurrection hypothesis'': many values are used for the last time just before a value of the same kind is created. This should be intuitive to most functional programmers, as functions that would otherwise mutate a value in an imperative language will instead create a new instance of the old value with the change applied to it in purely functional languages.
 
-As per \cite{ullrich_counting_2020}, the \icode{let x := reset y} instruction is inserted as early as possible when \texttt{y} is not used any more for the remainder of the function and a corresponding \icode{let z := ctorᵢ\ $\overline{\texttt{y}}$} call of the same kind as \texttt{y} exists later on in the same function. \icode{let z := reuse x in ctorᵢ\ $\overline{\texttt{y}}$} is used to replace the latter \icode{let z := ctorᵢ\ $\overline{\texttt{y}}$} call. Here, ``of the same kind'' means that both constructors occupy the same amount of memory.
+As per \cite{ullrich_counting_2020}, the \icode{let x := reset y} instruction is inserted as early as possible when \texttt{y} is not used anymore for the remainder of the function and a corresponding \icode{let z := ctorᵢ\ $\overline{\texttt{y}}$} call of the same kind as \texttt{y} exists later on in the same function. \icode{let z := reuse x in ctorᵢ\ $\overline{\texttt{y}}$} is used to replace the latter \icode{let z := ctorᵢ\ $\overline{\texttt{y}}$} call. Here, ``of the same kind'' means that both constructors occupy the same amount of memory.
 
 Semantically, \icode{let x := reset y} checks the reference count of \texttt{y} and denotes in \texttt{x} both \texttt{y} itself and whether \texttt{y} had a reference count equal to 1. Additionally, if the reference count is equal to 1, \icode{reset y} detaches the components of the soon-to-be-freed \texttt{y} pre-emptively by decrementing the reference counts of the components of \texttt{y}. \icode{reuse x in ctorᵢ\ $\overline{\texttt{y}}$} then checks \texttt{x} and either updates the referenced memory in-place if the reference count was equal to 1 at the call to \icode{reset} or allocates new memory according to \icode{ctorᵢ\ $\overline{\texttt{y}}$}.
 
@@ -193,6 +197,7 @@ map f xs = case xs of
    let r = reuse w in ctor₂ y ys;
    ret r)
 \end{ifcode}
+
 If \icode{reuse} was to check the reference count of \texttt{xs}, then \texttt{s} would have a reference count of 2: one reference from \texttt{s} itself, and one from \texttt{xs}, thus preventing further destructive updates in the recursive call to \texttt{map}.
 
 \subsubsection{Updating values within values}
@@ -207,7 +212,7 @@ def Array.groupBy (p : α → α → Ordering) (xs : Array α)
   return result
 \end{code}
 
-Here, after executing the line containing \lstinline|RBMap.find? p result x|, there can be two references to the array in \lstinline|group|: one from \lstinline|group| itself, and one within the red-black map \lstinline|result|. This precludes Lean from performing a destructive update in \lstinline|Array.push group x|, resulting in an expensive $\Theta(n)$-complexity copy of the whole array. Since this issue occurs every single loop iteration, our \lstinline|Array.groupBy| implementation is accidentally quadratic. Our imperative intuition lead us astray: If \lstinline|Array.push group x| was to update \lstinline|group| in-place, then this mutation would be observable in \lstinline|result|, but since we never observe it and immediately replace the reference to \lstinline|group| in \lstinline|result| using \lstinline|RBMap.insert p result x ...|, we consider the mutation safe. 
+Here, after executing the line containing \lstinline|RBMap.find? p result x|, there can be two references to the array in \lstinline|group|: one from \lstinline|group| itself, and one within the red-black tree based map \lstinline|result|. This precludes Lean from performing a destructive update in \lstinline|Array.push group x|, resulting in an expensive $\Theta(n)$-complexity copy of the whole array. Since this issue occurs every single loop iteration, our \lstinline|Array.groupBy| implementation is accidentally quadratic. Our imperative intuition lead us astray: If \lstinline|Array.push group x| was to update \lstinline|group| in-place, then this mutation would be observable in \lstinline|result|, but since we never observe it and immediately replace the reference to \lstinline|group| in \lstinline|result| using \lstinline|RBMap.insert p result x ...|, we consider the mutation safe. 
 
 The common solution to this issue is to introduce a function similar to the following for any type that can act as a container:\\
 \begin{code}
@@ -241,12 +246,13 @@ Situations akin to this one can occur for other types as well. We will discuss s
 
 \section{Linear Type Theory}\label{sec:ltt}
 \subsubsection{Substructural rules}
-Type systems typically guarantee certain functional or extensional properties for a given program using a typing relation $\Gamma \vdash e : \tau$, where $\Gamma$ is a set of type judgements $x : \tau'$. The following \textsc{Exchange}, \textsc{Weaken} and \textsc{Contract} rules are usually assumed implicitly:
+Type systems typically guarantee certain functional or extensional properties for a given program $e$ using a typing relation $\Gamma \vdash e : \tau$, where $\Gamma$ is a set of type judgements $x : \tau'$. The following \textsc{Exchange}, \textsc{Weaken} and \textsc{Contract} rules are usually assumed implicitly:
 \begin{mathpar}
 	$\inferrule[Exchange]{\Gamma_1, y : \tau_2, x : \tau_1, \Gamma_2 \vdash e : \tau}{\Gamma_1, x : \tau_1, y : \tau_2, \Gamma_2 \vdash e : \tau}$ \hspace{1.5em}
 	$\inferrule[Weaken]{\Gamma \vdash e : \tau}{\Gamma, x : \tau' \vdash e : \tau}$ \hspace{1.5em}
 	$\inferrule[Contract]{\Gamma, x : \tau', x : \tau' \vdash e : \tau}{\Gamma, x : \tau' \vdash e : \tau}$
 \end{mathpar} 
+
 In other words, judgements in the context can be reordered, discarded and duplicated freely.
 
 In the formal descriptions of dependent type theories, like the one described in \Cref{sec:dtt}, \textsc{Exchange} is inhibited, because $\tau_2$ may depend on $x$, which induces an order of declaration on variables in the context. However, if we want to guarantee only extensional properties for $e$, \textsc{Weaken} and \textsc{Contract} can always be freely assumed, as there is nothing to gain from retaining the exact count of every judgement in the context. 
@@ -254,7 +260,7 @@ In the formal descriptions of dependent type theories, like the one described in
 However, if we wish to guarantee non-functional or intensional properties for a given program, then discarding the \textsc{Weaken} and \textsc{Contract} rules can be useful. And indeed doing just that constitutes the core idea of substructural type theories: By retaining the exact amount of each judgement in the context, we can use typing rules to count objects in our program to ensure various kinds of intensional properties.
 
 \subsubsection{Beginnings of linear type theory}
-In most substructural type theories, the extra detail in the context is used to count variable uses. \cite{girard_linear_1987} was the first to notice that not assuming \textsc{Weaken} and \textsc{Contract} allows one to define so-called linear logics with dualities that allow reasoning about resource usage, and \cite{wadler_linear_1990} transports this idea to form a linear type theory with a set of entirely separate linear and non-linear types, even on the term level. See \Cref{fig:wadler-original} for Wadler's original linear type system.
+In most substructural type theories, the extra detail in the context is used to count variable uses. \cite{girard_linear_1987} was the first to notice that not assuming \textsc{Weaken} and \textsc{Contract} allows one to define so-called linear logics with dualities that allow reasoning about resource usage, and \cite{wadler_linear_1990} transports this idea to form a linear type theory with a set of entirely separate linear and non-linear types, even on the term level. Both \cite{girard_linear_1987} and \cite{wadler_linear_1990} use the $\multimap$ operator to denote the type of linear functions or implications that take exactly one instance of an argument and produce exactly one instance of a return value. See \Cref{fig:wadler-original} for Wadler's original linear type system. 
 
 \subsubsection{Properly linear or invariably unique}
 \cite{wadler_is_1991} then goes on to define the \textsc{Dereliction} and \textsc{Promotion} rules listed below that allow coercing a non-linear type to a linear type and promoting a linear type to a nonlinear one if it only depends on nonlinear types, as well as a ``steadfast'' type system where there is no coercion between linear and non-linear types, but both use the same term language. Especially in the former, non-linear types can be understood as having an unlimited quantity of something, whereas linear types can be understood as having exactly one of something.
@@ -262,7 +268,8 @@ In most substructural type theories, the extra detail in the context is used to 
 	$\inferrule[Dereliction]{\Gamma, x : \tau_1 \vdash e : \tau_2}{\Gamma, x :\ !\tau_1 \vdash e : \tau_2}$ \hspace{1.5em}
 	$\inferrule[Promotion]{!\Gamma \vdash e : \tau}{!\Gamma \vdash e :\ !\tau}$
 \end{mathpar}
-Here, $!\tau$ is a nonlinear type and $!\Gamma$ refers to every type in the context $\Gamma$ being non-linear. The motivation for including \textsc{Dereliction} is that $!$ can be understood as having an unlimited quantity of something, and if you have an unlimited quantity of something, you also have one of something. \textsc{Promotion} is justified because any single resource that can be created from resources of unlimited quantity can also be created in unlimited quantity by repeating the process.
+
+Here, $!\tau$ is a nonlinear type and $!\Gamma$ refers to every type in the context $\Gamma$ being non-linear. The motivation for including \textsc{Dereliction} is that $!$ can be understood as having an unlimited quantity of something, and if one has an unlimited quantity of something, one also has one of something. \textsc{Promotion} is justified because any single resource that can be created from resources of unlimited quantity can also be created in unlimited quantity by repeating the process.
 
 With \textsc{Dereliction} and \textsc{Promotion}, linear types make a guarantee for the future: As it could have been coerced from non-linear type, we do not know whether this variable has always been linear, but now that it is, we guarantee that it will be used exactly once. Meanwhile, in Wadler's ``steadfast'' version of the type system, as there is no coercion from non-linear to linear types, a linear variable has and will always be used exactly once.
 
@@ -385,8 +392,7 @@ The various applications of linear type theory include the following:
 	\label{fig:wadler-invariably-unique}
 \end{figure}
 \end{mdframed}
-\vspace*{\fill}
-\clearpage
+\vspace{5em}
 
 \section{Quantitative Type Theory}\label{sec:qtt}
 Quantitative type theory (QTT) applies the idea of properly linear type theory to dependent type theory. 
@@ -400,7 +406,7 @@ In linear type theories, the \textsc{App} rule is typically stated in a manner s
 When omitting the \textsc{Exchange} rule in dependent type theory, it is not clear that splitting the context into $\Gamma_1$ and $\Gamma_2$ is always possible, since types in $\Gamma_2$ may depend on variables in $\Gamma_1$. This seemingly technical issue induces a semantic problem as well: Which occurrences of a variable constitute a use? For example, what about occurrences in types?
 
 \subsubsection{Erasure}
-After this issue was left unsolved for a long time, \cite{mcbride_i_2016} resolved it by introducing a third kind of type to linear type theory, resulting in the three kinds of type ``linear'' (denoted as $1$), ``non-linear'' (denoted as $\omega$) and ``erased'' (denoted as $0$). ``erased'' specifies that a type or a term within DTT is not computationally relevant and will be erased by the compiler. 
+After this issue was left unsolved for a long time, \cite{mcbride_i_2016} resolved it by introducing a third kind of type to linear type theory, resulting in the three kinds of type ``linear'' (denoted as $1$), ``non-linear'' (denoted as $\omega$) and ``erased'' (denoted as $0$). ``Erased'' specifies that a type or a term within DTT is not computationally relevant and will be erased by the compiler. 
 
 Erased terms or types can only be used in other erased terms or types, and types are always erased. Since an erased term is not computationally relevant, we also do not need to count variable uses in erased terms. Finally, when a linear variable is used, it becomes erased, which justifies the use of $1$ to denote linear types and $0$ to denote erased types. 
 
@@ -420,7 +426,7 @@ Both \cite{mcbride_i_2016} and \cite{atkey_syntax_2018} specify a generic framew
 The typing rules for quantitative type theory as described by \cite{svoboda_additive_2021} and inspired by \cite{atkey_syntax_2018} can be found in \cref{fig:qtt}.
 
 \subsubsection{Demand-based consumption}
-Finally, note that by denoting the linear quantity on the binder in $(x :_1 \tau_1) \to \tau_2$, we cannot specify a quantity for $\tau_2$ any more, as we could in linear type theory by using either a linear or non-linear type for the return type. Instead, when checking an application $f\ (g\ e) :_1 \tau_3$ for $f :_1 (x :_q \tau_2) \to \tau_3$, $g :_1 (x :_1 \tau_1) \to \tau_2$ and $e :_1 \tau_1$, we demand $q$ instances of the resources $\Gamma$ required to check $g\ e :_1 \tau_2$. 
+Finally, note that by denoting the linear quantity on the binder in $(x :_1 \tau_1) \to \tau_2$, we cannot specify a quantity for $\tau_2$ anymore, as we could in linear type theory by using either a linear or non-linear type for the return type. Instead, when checking an application $f\ (g\ e) :_1 \tau_3$ for $f :_1 (x :_q \tau_2) \to \tau_3$, $g :_1 (x :_1 \tau_1) \to \tau_2$ and $e :_1 \tau_1$, we demand $q$ instances of the resources $\Gamma$ required to check $g\ e :_1 \tau_2$. 
 
 In other words, if we need $q$ instances of a return value that requires $\Gamma$ resources to produce, we instead demand $q \cdot \Gamma$ resources in our context, pretending that we applied the function $q$ times to obtain $q$ instances of the return value. This way, quantities need not be specified on return values, and the resources for the arguments are consumed based on the required amount of the return value. The \textsc{Promotion} rule from \cref{sec:ltt} is integrated into the rules for other types.
 
@@ -478,14 +484,14 @@ Quantitative type theory combines the benefits of linear type theory and depende
 \end{figure}
 \end{mdframed}
 \vspace*{\fill}
-\clearpage
 
 \section{Uniqueness Type Theory}\label{sec:uniqueness}
 \cite{smetsers_guaranteeing_1994} and \cite{barendsen_uniqueness_1996} introduce a type system for the Clean programming language with the goal of guaranteeing referential uniqueness to enable many of the applications described in \cref{sec:ltt}. The core idea is to use the linear and non-linear types of linear type systems, but instead of keeping them entirely separate or allowing for a coercion from non-linear types to linear types, the coercion is inverted, allowing for the conversion of linear types to non-linear types. 
 
 The motivation for this idea is that both properly linear type systems that guarantee referential uniqueness through careful library design and invariably unique type systems are too restrictive: For some use-cases of referential uniqueness, like destructive updates, it is perfectly acceptable to discard the uniqueness guarantee at some point, because the lack of a static uniqueness guarantee can still be mitigated through other means, as for example in \cref{sec:beans}, or because it is simply not needed for the remainder of the program. 
 
-As long as there is a coercion from linear types to non-linear types, uniqueness type systems refer to linear types as ``unique'' (tagged with $*$ in the type system) and non-linear types as ``non-unique'' or ``shared'' (tagged with $!$ in the type system). The temporal guarantee becomes inverted: While linear types ensure that a variable is always used exactly once in the future, uniqueness types ensure that a variable has always been used exactly once in the past \citep{de_vries_making_2009}\citep{sergey_linearity_2022}.
+As long as there is a coercion from linear types to non-linear types, uniqueness type systems refer to linear types as ``unique'' (tagged with $*$ in the type system) and non-linear types as ``non-unique'' or ``shared'' (tagged with $!$ in the type system). The temporal guarantee becomes inverted: While linear types ensure that a variable is always used exactly once in the future, uniqueness types ensure that a variable has always been used exactly once in the past \citep{de_vries_making_2009} \citep{sergey_linearity_2022}.
+
 \begin{mathpar}
 	$\inferrule[Shallow-Cast-Left]{\Gamma, x :\ !\tau \vdash e : \tau'}{\Gamma, x : *\tau \vdash e : \tau'}$ \hspace{1.5em}
 	$\inferrule[Shallow-Cast-Right]{\Gamma \vdash e : *\tau}{\Gamma \vdash e :\ !\tau}$
@@ -494,7 +500,7 @@ As long as there is a coercion from linear types to non-linear types, uniqueness
 \subsubsection{Uniqueness types by library design}
 Implementations like the one in Linear Haskell \citep{bernardy_linear_2018} acknowledge the over-restrictiveness of linear type theory and make the coercion from linear to non-linear types a part of their library design as well: If MArray represents an array that is always guaranteed to be linear because its constructor has type $\mathrm{newMArray} :\ !\mathbb{N} \multimap (\mathrm{MArray}\ \alpha \multimap\ !\beta) \multimap\ !\beta$, then the coercion is $\mathrm{freeze} : \mathrm{MArray}\ \alpha \multimap\ !(\mathrm{Array}\ \alpha)$. 
 
-Note that since this coercion requires switching out the entire type of the array, coercing nested arrays in constant time becomes problematic. A recent apporach by \cite{spiwack_linearly_2022} attempts to mitigate this issue by introducing a system of linear capabilities on top of the linear type system, so that Read and Read+Write capabilities are managed and passed around implicitly, freeze removes the Write capability from an MArray and gaining linear read access to a nested array within requires the Write capability for the outer array. We will go into some more detail on this approach in \cref{sec:borrowingbackground}.
+Note that since this coercion requires switching out the entire type of the array, coercing nested arrays in constant time becomes problematic. A recent approach by \cite{spiwack_linearly_2022} attempts to mitigate this issue by introducing a system of linear capabilities on top of the linear type system, so that read-only and read+write capabilities are managed and passed around implicitly, freeze turns a read+write MArray into a read-only MArray and reading from a read-only MArray again yields read-only values. The capability-based freeze idea is described in \cite{spiwack_linear_2023}. We will go into some more detail on this approach in \cref{sec:borrowingbackground}.
 
 \subsubsection{Lambda calculus and uniqueness types}
 Unfortunately, the original type system of Clean was formulated in terms of graph rewriting and not lambda calculus, which meant that advances by the rest of the type theory research community were difficult to transfer over to uniqueness typing, a deficit that was only resolved much later by \cite{de_vries_making_2009}. In his thesis, de Vries first provides a uniqueness type system based on lambda calculus resembling that of Clean and then iteratively refines it with the goal of introducing higher-rank polymorphism \citep{jones_practical_2007}.
@@ -512,7 +518,7 @@ With uniqueness types, the situation is unfortunately more complicated: If it is
 
 Clean in particular resolves the issue by enforcing the invariant both at construction and at deconstruction; if the type of a value is malformed, then deconstructing it is not allowed. Note that an alternative solution would be that deconstructing it is allowed, but the contained values will again be non-unique.
 
-\paragraph{Higher-order functions} Second, both in uniqueness type systems and invariably unique type systems, there is a question of what to do about function closures. When forming $\lambda x.\ e :\ !(\tau_1 \multimap \tau_2)$, the closure of the function is data that is dragged around by the resulting function. As such, the same considerations as for types $\tau_1 \otimes \tau_2$ apply, namely that values of non-linear type (the function) cannot be allowed to contain values of linear types (anything implicitly contained in the function closure), lest we could duplicate the function value and with that its closure. 
+\paragraph{Higher-order functions} Second, both in uniqueness type systems and invariably unique type systems, there is a question of what to do about function closures. When forming $\lambda x.\ e :\ !(\tau_1 \multimap \tau_2)$, the closure of the function is data that is dragged around by the resulting function. As such, the same considerations as for types $\tau_1 \otimes \tau_2$ apply, i.e.\ that values of non-linear type (the function) cannot be allowed to contain values of linear types (anything implicitly contained in the function closure), lest we could duplicate the function value and with that its closure. 
 
 In an invariably unique type system without \textsc{Promotion} and \textsc{Dereliction}, this is somewhat easy to resolve: For example, Wadler's steadfast types require that every type in the closure of a function must be non-linear when forming the abstraction.
 
@@ -520,7 +526,7 @@ In a uniqueness type system, this situation is again much more complicated becau
 
 \paragraph{Uniqueness is not a quantity} Finally, it is worth pointing out that uniqueness types cannot simply be added as a quantity to existing quantitative type theories. 
 
-The trick described at the end of \cref{sec:qtt} that allows for specifying whether a value is linear or non-linear only on binders rests on the fact that there is a coercion from non-linear to linear values, so that a function $f : \tau_1 \multimap\ !\tau_2$ can be coerced to $f : \tau_1 \multimap \tau_2$, after which the amount of required $\tau_1$ is scaled up by the amount of $\tau_2$ resources needed in the context. In other words, uniqueness types are not ``quantitative'' in the sense that the intuitions for reasoning about amounts of resources do not apply to them.
+The trick described at the end of \cref{sec:qtt} that allows for specifying whether a value is linear or non-linear only on binders rests on the fact that there is a coercion from non-linear to linear values, so that a function $f : \tau_1 \multimap\ !\tau_2$ can be coerced to $f : \tau_1 \multimap \tau_2$, after which the amount of required $\tau_1$ is scaled up by the amount of $\tau_2$ resources needed. In other words, uniqueness types are not ``quantitative'' in the sense that the intuitions for reasoning about amounts of resources do not apply to them.
 
 Instead, one approach to combine uniqueness types with dependent type theory is Graded Modal Dependent Type Theory (GRTT) \citep{moon_graded_2021}, a dependent type theory with a linearly typed substructural base that allows attaching generic modalities to types. \cite{sergey_linearity_2022} integrate uniqueness types into Granule \citep{orchard_quantitative_2019}, a non-dependently-typed precursor to GRTT. Unfortunately, their type system does not allow the use of unique types within other unique types, only within linear types. The uniqueness fragment of the type system can be found in \cref{fig:marshall-unique}.
 \clearpage
@@ -558,20 +564,19 @@ Instead, one approach to combine uniqueness types with dependent type theory is 
 	\end{figure}
 \end{mdframed}
 \vspace*{\fill}
-\clearpage
 
 \section{Borrowing}\label{sec:borrowingbackground}
 Linear type theory, quantitative type theory and uniqueness type theory all have one inconvenience in common: Every function consumes all of its arguments, and so a function that only reads from a linear or unique argument will lose the reference in the process. As we are working in the context of pure functional programming languages, a reference being ``read-only'' in a function refers to the fact that the reference does not escape the function.
 
-In most basic formulations of linear and uniqueness type theory, this is resolved by adjusting the encoding of linear and unique functions to manually thread the read-only reference through the program: The function $f : \tau_1 \multimap \tau_2 \multimap \tau_3$, where the second argument does not escape in $\tau_3$, becomes $f : \tau_1 \multimap \tau_2 \multimap \tau_2 \otimes \tau_3$. Unfortunately, while this encoding can always be used, it is inconvenient and affects both the type-level encoding and the term-level usage of most functions. 
+In most basic formulations of linear and uniqueness type theory, this is resolved by adjusting the encoding of linear and unique functions to manually thread the read-only reference through the program: The function $f : \tau_1 \multimap \tau_2 \multimap \tau_3$, where the second argument does not escape in the return value, becomes $f : \tau_1 \multimap \tau_2 \multimap \tau_2 \otimes \tau_3$. Unfortunately, while this encoding can always be used, it is inconvenient and affects both the type-level encoding and the term-level usage of most functions. 
 
-In order to alleviate this issue, many linear type theories implement a notion of ``borrowing'', i.e.\ the non-consumption of arguments of which all components are guaranteed not to escape. 
+In order to alleviate this issue, many linear type theories implement a notion of ``borrowing'', i.e.\ the non-consumption of arguments for which all components are guaranteed not to escape. 
 
 \subsubsection{Implementations}
 There are essentially three classes of implementations of borrowing:
 \begin{enumerate}
 	\item Applying syntactical restrictions on the types that can be borrowed \citep{wadler_linear_1990}
-	\item Integrating an escape analysis with the type theory \citep{odersky_observers_1992}\citep{kobayashi_quasi-linear_1999}\citep{aspinall_another_2002}
+	\item Integrating an escape analysis with the type theory \citep{odersky_observers_1992} \citep{kobayashi_quasi-linear_1999} \citep{aspinall_another_2002}
 	\item Using type-level mechanisms to hide the explicit threading \citep{spiwack_linearly_2022}
 \end{enumerate}
 
@@ -604,4 +609,4 @@ Primitive dedicated borrowing operations can be defined for many other types as 
 \subsubsection{Updating values within values}
 In \cref{sec:beans}, we saw that performing destructive updates on values within containers can be problematic for Lean's destructive update mechanism as well. So far, we have only discussed approaches that grant read access to values within containers, but what about write access?
 
-It turns out that granting write access to single elements is rather straight-forward and can be implemented in a similar manner as we did in \cref{sec:beans}. For arrays and a linear type \lstinline|α|, we could define a primitive function \lstinline|swap : Array α ⊸ !ℕ ⊸ α ⊸ Array α ⊗ α| that swaps out an element in the array with another and will hence retain the linearity of both. Using this primitive, we can define \lstinline|update : Array α ⊸ α ⊸ !ℕ ⊸ (α ⊸ α) ⊸ Array α|, where the second argument is a default value that is swapped into the array while the function of type \lstinline|(α ⊸ α)| is applied. On the other hand, implementing an efficient slicing primitive would be more difficult, as there is no guarantee that two sub-arrays can be efficiently rejoined without a token witnessing this. The Lean 4 destructive update mechanism struggles with this issue, too.
+It turns out that granting write access to single elements is rather straight-forward and can be implemented in a similar manner as we did in \cref{sec:beans}. For arrays and a linear type \lstinline|α|, we could define a primitive function \lstinline|swap : Array α ⊸ !ℕ ⊸ α ⊸ Array α ⊗ α| that swaps out an element in the array with another and will hence retain the linearity of both. Using this primitive, we can define \lstinline|update : Array α ⊸ α ⊸ !ℕ ⊸ (α ⊸ α) ⊸ Array α|, where the second argument is a default value that is swapped into the array while the function of type \lstinline|(α ⊸ α)| is applied. On the other hand, implementing an efficient slicing primitive that allows writing to slices as in \cite{spiwack_linearly_2022} would be more difficult, since there is no guarantee that two sub-arrays can be efficiently rejoined without a token witnessing this. The Lean 4 destructive update mechanism struggles with this issue, too.

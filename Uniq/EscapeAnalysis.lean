@@ -135,7 +135,7 @@ namespace IR.EscapeAnalysis
         let escapees := s.fnBodyEscapees (.case i :: tag) cases[i]!
         r := r.union escapees
       return r
-    | FnBody.case' x cases => Id.run do
+    | FnBody.case' _ x cases => Id.run do
       let mut r := .empty
       for i in [0:cases.size] do
         let ⟨ctor, args, F⟩ := cases[i]!
@@ -173,7 +173,7 @@ namespace IR.EscapeAnalysis
                 guard <| field.1 == ctor -- an escapee for a constructor ≠ i is not relevant for y
                 let argIdxCorrespondingToField : Nat := field.2
                 return mkDerivedEscapee y args[argIdxCorrespondingToField]! rest
-          | Expr.proj ctor proj y =>
+          | Expr.proj _ ctor proj y =>
             FEscapees.filter (·.var == x) |>.map fun escapee =>
               mkDerivedEscapee escapee y ((ctor, proj) :: escapee.field)
       FEscapees.union exprEscapees
@@ -258,19 +258,19 @@ namespace IR.EscapeAnalysis
     def somevar : Var := 9
 
     def iget? : FnBody :=
-      icase' xsvar: #[
+      iList․icase' xsvar: #[
         (iNil, #[],
-          ilet nonevar ≔ ictor iOption⟦#[some <| .erased .shared]⟧iNone @@ #[];
+          ilet nonevar ≔ .ctor iOption #[some <| .erased .shared] iNone #[];
           iret nonevar),
         (iCons, #[head, tail],
-          ilet zero ≔ iapp mkZero @@ #[];
-          ilet eqr ≔ iapp natEq @@ #[ivar, zero];
+          ilet zero ≔ .app mkZero #[];
+          ilet eqr ≔ .app natEq #[ivar, zero];
           icase eqr: #[
-            ilet predr ≔ iapp predNat @@ #[ivar];
-            ilet recr ≔ iapp getList @@ #[tail, predr];
+            ilet predr ≔ .app predNat #[ivar];
+            ilet recr ≔ .app getList #[tail, predr];
             iret recr,
             ----
-            ilet somevar ≔ ictor iOption⟦#[some <| .erased .shared]⟧iSome @@ #[head];
+            ilet somevar ≔ .ctor iOption #[some <| .erased .shared] iSome #[head];
             iret somevar
           ])
       ]

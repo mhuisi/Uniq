@@ -10,22 +10,23 @@ In order to perform the data flow analysis in \Cref{sec:escapeanalysis}, we use 
 
 We implement the type checker for the type theory in \Cref{sec:checking} as follows:
 \begin{itemize}
-	\item $Z \in \ZeroedFields$ is implemented as a red-black tree based set, $\Gamma$ as a red-black tree based map from Var to AttrType, not a multiset. Since we know that variables are either unique or shared, all variables in $\Gamma$ can either be duplicated and forgotten freely, or there is only one of them in the context. Hence, we do not need to track the exact amount of each variable in the context, only whether it is unique or shared.
+	\item $Z \in \ZeroedFields$ is implemented as a red-black tree based set and $\Gamma$ as a red-black tree based map from Var to AttrType, not a multiset. Since we know that variables are either unique or shared, all variables in $\Gamma$ can either be duplicated and forgotten freely, or there is only one of them in the context. Hence, we do not need to track the exact amount of each variable in the context, only whether it is unique or shared.
 	\item The type rules are implemented by matching on the program and applying the corresponding unique rule.
-	\item When checking whether a type $\tau_1$ is applicable to a type $\tau_2$ in any rule, we do not check for equality, but instead a relation $\tau_1 \rightsquigarrow \tau_2$ that determines whether $\tau_1$ can be made equal to $\tau_2$ after applying the \textsc{Downcast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase} rules.
-	\item When using \textsc{Downcast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase}, it is important that we replace the old type with the new one, lest we could retain a unique attribute in our context after it has already been made shared. Hence, after checking whether $\tau_1 \rightsquigarrow \tau_2$ for $x : \tau_1 \in \Gamma$ in a rule, we set $\Gamma[x \mapsto \tau_2]$ to update the context. This can be understood as applying \textsc{Downcast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase} as needed just before the application of the rule.
+	\item When checking whether a type $\tau_1$ is applicable to a type $\tau_2$ in any rule, we do not check for equality, but instead a relation $\tau_1 \rightsquigarrow \tau_2$ that determines whether $\tau_1$ can be made equal to $\tau_2$ after applying the \textsc{Cast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase} rules.
+	\item When using \textsc{Cast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase}, it is important that we replace the old type with the new one, lest we could retain a unique attribute in our context after it has already been made shared. Hence, after checking whether $\tau_1 \rightsquigarrow \tau_2$ for $x : \tau_1 \in \Gamma$ in a rule, we set $\Gamma[x \mapsto \tau_2]$ to update the context. This can be understood as applying \textsc{Cast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase} as needed just before the application of the rule.
+	\item When encountering an erased type in one of the \textsc{Case'} or \textsc{Let-Proj} rules where we have no expected type to convert to using $\tau_1 \rightsquigarrow \tau_2$, we use the ADT designated in the instruction and propagate the erasedness to the type arguments of the ADT. Additionally, we assume each type parameter to be shared, so as to correctly implement the \textsc{$\blacksquare$-Cast} rule.
 	\item To eliminate \textsc{Duplicate} and \textsc{Forget}, we integrate their application carefully into the other rules by not consuming shared variables in rules that would otherwise consume them.
-	\item We infer the constructor type arguments and the constructor return type to decide how to apply \textsc{Let-Ctor-*} and \textsc{Let-Ctor-!} according to our description below in \Cref{sec:ctorinference}.
-	\item When applying a vector $[\tau_1]$ to $[\tau_2]$ for $[x : \tau_1] \subseteq \Gamma$, we apply \textsc{Downcast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase} while consuming unique variables and updating the context iteratively, so that e.g.\ \lstinline|c x x| fails for $\icode{x} : *\ \blacksquare$ and $\icode{c} : *\ \blacksquare \to *\ \blacksquare \to ...$ or $\icode{c} :\ !\ \blacksquare \to *\ \blacksquare \to ...$.
+	\item We infer the constructor type arguments and the constructor return type to decide how to apply \textsc{Let-Ctor-$*$} and \textsc{Let-Ctor-!} according to our description below in \Cref{sec:ctorinference}.
+	\item When applying a vector of arguments with types $[\tau_1]$ to parameters of types $[\tau_2]$ for $[x : \tau_1] \subseteq \Gamma$, we apply \textsc{Cast}, \textsc{$\blacksquare$-Cast} and \textsc{$\blacksquare$-Erase} while consuming unique variables and updating the context iteratively, so that e.g.\ \lstinline|c x x| fails for $\icode{x} : *\ \blacksquare$ and $\icode{c} : *\ \blacksquare \to *\ \blacksquare \to ...$ or $\icode{c} :\ !\ \blacksquare \to *\ \blacksquare \to ...$.
 \end{itemize}
 
 \section{Constructor Type Inference}\label{sec:ctorinference}
-In this section, we will discuss methods of inference in order to decide how and when to apply the \textsc{Let-Ctor-*} and \textsc{Let-Ctor-!} rules in \Cref{sec:checking}. All methods discussed here are approximations, i.e.\ the \textsc{Let-Ctor-*} and \textsc{Let-Ctor-!} rules defined here using inference can lead to a type error when the corresponding rules in \Cref{sec:checking} will not. However, errors of this kind should be easy to understand and easy to resolve locally in user code.
+In this section, we will discuss methods of inference in order to decide how and when to apply the \textsc{Let-Ctor-$*$} and \textsc{Let-Ctor-!} rules in \Cref{sec:checking}. All methods discussed here are approximations, i.e.\ the \textsc{Let-Ctor-$*$} and \textsc{Let-Ctor-!} rules defined here using inference can lead to a type error when the corresponding rules in \Cref{sec:checking} will not. However, errors of this kind should be easy to understand and easy to resolve locally in user code.
 
 \subsubsection{Type arguments}
-As discussed briefly in the description of the \icode{ctor} instruction in \Cref{sec:ir}, we must infer the attributes in a \icode{(A [τ?]).ctorᵢ [y]} call since Lean cannot provide them and because we need them to decide how to apply the \textsc{Let-Ctor-*} and \textsc{Let-Ctor-!} rules in \Cref{sec:typetheory}. 
+As discussed briefly in the description of the \icode{ctor} instruction in \Cref{sec:ir}, we must infer the attributes in a \icode{(A [τ?]).ctorᵢ [y]} call since Lean cannot provide them and because we need them to decide how to apply the \textsc{Let-Ctor-$*$} and \textsc{Let-Ctor-!} rules in \Cref{sec:typetheory}. 
 
-We will do so in two steps: First, we assign types to type variables based on the types of the arguments provided in \texttt{[y]}. Then, we use the explicit type arguments provided by the user in \icode{[τ?]} to fill the remaining variables that could not be inferred and choose their attributes as strongly as possible, since type arguments that cannot be inferred from the types of \texttt{[y]} are not subject to any uniqueness constraints induced by the vector of constructor arguments. 
+We will do so in two steps: First, we assign types to type variables based on the types of the arguments provided in the context $\Gamma$ for \texttt{[y]}. Then, we use the explicit type arguments provided by the user in \icode{[τ?]} to fill the remaining variables that could not be inferred and choose their attributes as strongly as possible, since type arguments that could not be inferred from the types of \texttt{[y]} are also not assigned by the types of \texttt{[y]}. 
 
 Together, this ensures that no attributes for type arguments must be provided explicitly by the user, as they can either be inferred or chosen as strongly as possible.
 
@@ -37,11 +38,10 @@ Together, this ensures that no attributes for type arguments must be provided ex
 		f(x) & x \in \dom(f) \cap \dom(g) \land f(x) = g(x)
 	\end{cases}
 \end{alignat*}
-
 Note that $(f, g) \notin \dom(\cdot \sqcup \cdot)$ if $\exists x \in \dom(f) \cap \dom(g).\ f(x) \neq g(x)$.
 
 \newcommand{\inferVarsDash}{\mathrm{inferVars'}}
-
+\newcommand{\inferVars}{\mathrm{inferVars}}
 \begin{alignat*}{3}
 	&\inferVarsDash &&: \mathrlap{\AttrType \times \AttrType \rightharpoonup (\Var \rightharpoonup \AttrType)} \\
 	&\inferVarsDash&&(m\ x^\kappa, \tau) &&= \emptyset \\
@@ -51,33 +51,28 @@ Note that $(f, g) \notin \dom(\cdot \sqcup \cdot)$ if $\exists x \in \dom(f) \ca
 	&\inferVarsDash&&(!\ [\tau_{\param_1}] \to \tau_{\ret_1}, !\ [\tau_{\param_2}] \to \tau_{\ret_2}) &&= \\
 	&\rebreak{\bigsqcup_i \inferVarsDash([\tau_{\param_1}]_i, [\tau_{\param_2}]_i) \sqcup \inferVarsDash(\tau_{\ret_1}, \tau_{\ret_2})}
 \end{alignat*}
-
-\newcommand{\inferVars}{\mathrm{inferVars}}
-
-\begin{alignat*}{3}
-	\inferVars &: \mathrlap{[\AttrType] \times [\AttrType] \rightharpoonup (\Var \rightharpoonup \AttrType)} \\
-	\inferVars&([], []) &&= \emptyset \\
-	\inferVars&(\tau_1 :: \rest_1, \tau_2 :: \rest_2) &&= \inferVarsDash(\tau_1, \tau_2) \sqcup \inferVars(\rest_1, \rest_2) \\
+\vspace{-1em}\begin{alignat*}{3}
+	&\inferVars &&: \mathrlap{[\AttrType] \times [\AttrType] \rightharpoonup (\Var \rightharpoonup \AttrType)} \\
+	&\inferVars&&([], []) &&= \emptyset \\
+	&\inferVars&&(\tau_1 :: \rest_1, \tau_2 :: \rest_2) &&= \inferVarsDash(\tau_1, \tau_2) \sqcup \inferVars(\rest_1, \rest_2)
 \end{alignat*}
 
-inferVars' takes an expected type with type variables and a provided type and computes an assignment of types to variables s.t.\ the first type becomes the second after substitution. In doing so, it ignores self-variables $m\ x^\kappa$, because the type without type variables has not had its variables substituted yet, while the provided type has had its variables substituted. As a result, inferVars' yielding an assignment by itself cannot guarantee that the first type is equal to the second one after substitution, and we must perform another check after substituting all the variables to obtain this guarantee. 
+The function inferVars' takes an expected type with type variables and a provided type and computes an assignment of types to variables s.t.\ the first type becomes the second after substitution. In doing so, it ignores self-variables $m\ x^\kappa$ and uniqueness attributes. As a result, inferVars' yielding an assignment by itself cannot guarantee that the first type is equal to the second one after substitution, and we must perform another check after substituting all the variables to obtain this guarantee. 
 
-Note also that if there is a conflicting assignment for any variable in $\inferVarsDash(\tau_1, \tau_2)$ or $\inferVars([\tau_1], [\tau_2])$, then $\cdot \sqcup \cdot$ propagates its partiality to inferVars' and subequently inferVars, i.e.\ $(\tau_1, \tau_2) \notin \dom(\inferVarsDash)$ and $([\tau_1], [\tau_2]) \notin \dom(\inferVars)$.
+Note that if there is a conflicting assignment for any variable in $\inferVarsDash(\tau_1, \tau_2)$ or $\inferVars([\tau_1], [\tau_2])$, then $\cdot \sqcup \cdot$ propagates its partiality to inferVars' and subequently to inferVars, i.e.\ $(\tau_1, \tau_2) \notin \dom(\inferVarsDash)$ and $([\tau_1], [\tau_2]) \notin \dom(\inferVars)$.
 
 \newcommand{\pickTypes}{\mathrm{pickTypes}}
-
 \begin{alignat*}{3}
 	\pickTypes &: \mathrlap{[\AttrType?] \times [\AttrType?] \rightharpoonup [\AttrType]} \\
-	\pickTypes&([]) &&= [] \\
+	\pickTypes&([], []) &&= [] \\
 	\pickTypes&(\tau_e? :: \rest_e, \tau_i :: \rest_i) &&= \tau_i :: \pickTypes(\rest_e, \rest_i) \\
 	\pickTypes&(\tau_e :: \rest_e, - :: \rest_i) &&= \strengthen(\tau_e) :: \pickTypes(\rest_e, \rest_i) \\
 \end{alignat*}
 
-Here, we use $-$ to denote that an $\AttrType?$ is not present.
+Here, we use $-$ to denote that an optional $\AttrType$ is not present.
 With pickTypes, we implement the mechanism that inferred types are preferred if they exist, and otherwise an explicit type is used and strengthened. Note that if $\exists i.\ [\tau_1]_i = [\tau_2]_i = -$, then $([\tau_1], [\tau_2]) \notin \dom(\pickTypes)$.
 
 \newcommand{\inferTypeArgs}{\mathrm{inferTypeArgs}}
-
 \begin{alignat*}{3}
 	&\inferTypeArgs &&: \mathrlap{\ADT \times \Ctor \times [\AttrType] \times [\AttrType?] \rightharpoonup [\AttrType]} \\
 	&\inferTypeArgs&&(a, i, [\tau_\arrg], [\tau_e?]) &&= \pickTypes([\tau_e?], [\mathrm{inferred}(y^\tau)])\\
@@ -85,13 +80,12 @@ With pickTypes, we implement the mechanism that inferred types are preferred if 
 	&\rebreak{\text{and } \mathrm{inferred} = \inferVars([\tau_\field(x^\kappa_\adt, [y^\tau])], [\tau_\arrg]])}
 \end{alignat*}
 
-Lastly, using inferTypeArgs, we infer type arguments for a constructor $i$ in an ADT $a$ with provided arguments types $[\tau_\arrg]$ and user-provided explicit argument types $[\tau_e?]$. Once again, both inferVars and pickTypes propagate their partiality to inferTypeAgs.
+Lastly, using inferTypeArgs, we infer type arguments for a constructor $i$ in an ADT $a$ with types $[\tau_\arrg]$ for some vector of arguments \texttt{[y]} from a context $\Gamma$ and user-provided explicit argument types $[\tau_e?]$. Once again, both inferVars and pickTypes propagate their partiality to inferTypeAgs.
 
 \subsubsection{Return types}
-Furthermore, we must infer whether the result of a \icode{(A [τ?]).ctorᵢ [y]} call is used uniquely. If it is, we want the resulting type to be unique, and if it is not, it can be shared. This distinction is important because we do not need to demand unique types for the arguments \texttt{[y]} if the ADT created by the \icode{ctor} call is used only in a shared manner.
+Furthermore, we must infer whether the result of a \icode{(A [τ?]).ctorᵢ [y]} call is used uniquely. If it is, we want the resulting type to be unique, and otherwise, it can be shared. This is important because we do not need to demand unique types for arguments \texttt{[y]} if the ADT created by a \icode{ctor} call is used only in a shared manner.
 
-\newcommand{\uniqueUses}{\mathrm{uniqueUses}}
-
+\newcommand{\uniqueUses}{\mathrm{uu}}
 \begingroup
 \allowdisplaybreaks
 \begin{alignat*}{3}
@@ -101,9 +95,9 @@ Furthermore, we must infer whether the result of a \icode{(A [τ?]).ctorᵢ [y]}
 		\emptyset & \attr(\tau_\ret) =\ !
 	\end{cases} \\
 	&\uniqueUses&&(\icode{case x of [F]}, \tau_\ret) = \bigcup_i \uniqueUses(\icode{[F]}_i, \tau_\ret) \\
-	&\uniqueUses&&(\icode{case' x of [ctorᵢ [y] ⇒ F]}, \tau_\ret) = \bigcup_i \uniqueUses(\icode{[F]}_i, \tau_\ret) \\
+	&\uniqueUses&&(\icode{A.case' x of [ctorᵢ [y] ⇒ F]}, \tau_\ret) = \bigcup_i \uniqueUses(\icode{[F]}_i, \tau_\ret) \\
 	&\rebreak{\cup \begin{cases}
-			\{x\} & \exists \icode{y} \in \icode{[y]}.\ \icode{y} \in \uniqueUses(\icode{[F]}_i, \tau_\ret) \\
+			\{\icode{x}\} & \exists \icode{y} \in \icode{[y]}.\ \icode{y} \in \uniqueUses(\icode{[F]}_i, \tau_\ret) \\
 			\emptyset & \lnot \exists \icode{y} \in \icode{[y]}.\ \icode{y} \in \uniqueUses(\icode{[F]}_i, \tau_\ret)
 	\end{cases}}\\
 	&\uniqueUses&&(\icode{let x = c [y]; F}, \tau_\ret) = \uniqueUses(\icode{F}, \tau_\ret)\\
@@ -112,44 +106,47 @@ Furthermore, we must infer whether the result of a \icode{(A [τ?]).ctorᵢ [y]}
 	&\uniqueUses&&(\icode{let x = y z; F}, \tau_\ret) = \uniqueUses(\icode{F}, \tau_\ret) \\
 	&\uniqueUses&&(\icode{let x = (A [τ?]).ctorᵢ [y]; F}, \tau_\ret) = \uniqueUses(\icode{F}, \tau_\ret) \\
 	&\rebreak{\cup \begin{cases}
-			\left\{\icode{[y]}_j\ |\ \exists x^\tau.\ \gamma(A)_{\icode{i}j} = x^\tau \lor \attr(\gamma(A)_{\icode{i}j}) = *\right\} & \icode{x} \in \uniqueUses(\icode{F}, \tau_\ret) \\
+			\left\{\icode{[y]}_j\ |\ \exists x^\tau.\ \gamma(\icode{A})_{\icode{i}j} = x^\tau \lor \attr(\gamma(\icode{A})_{\icode{i}j}) = *\right\} & \icode{x} \in \uniqueUses(\icode{F}, \tau_\ret) \\
 			\emptyset & \icode{x} \notin \uniqueUses(\icode{F}, \tau_\ret)
 	\end{cases}} \\
-	&\uniqueUses&&(\icode{let x = projᵢⱼ y; F}, \tau_\ret) = \uniqueUses(\icode{F}, \tau_\ret)\\
-	&\rebreak{\cup \begin{cases}
+	&\uniqueUses&&(\icode{let x = A.projᵢⱼ y; F}, \tau_\ret) = \uniqueUses(\icode{F}, \tau_\ret) \cup \begin{cases}
 			\{\icode{y}\} & \icode{x} \in \uniqueUses(\icode{F}, \tau_\ret) \\
 			\emptyset & \icode{x} \notin \uniqueUses(\icode{F}, \tau_\ret)
-	\end{cases}}
+	\end{cases}
 \end{alignat*}
 \endgroup
-In the \icode{case' x of ...} case, we denote \texttt{x} as being used uniquely if any of its fields are used uniquely in any of the branches. Arguments to a constructor \icode{ctorᵢ} are regarded as being used uniquely if the constructor itself is used uniquely and the argument type is either unique or a type variable, in which case we assume the argument as being used uniquely. Note that it would be possible to infer this more accurately by inferring which type the type variable will be assigned to from an expected type. If a projection \icode{projᵢⱼ x} is used uniquely, then \texttt{x} is used uniquely as well.
+
+In the \icode{A.case' x of ...} case, we denote \texttt{x} as being used uniquely if any of its fields are used uniquely in any of the branches. Arguments to a constructor \icode{ctorᵢ} are regarded as being used uniquely if the constructor itself is used uniquely and the argument type is either unique or a type variable, in which case we assume the argument as being used uniquely. Note that it would be possible to infer this more accurately by inferring which type the type variable will be assigned to from an expected type. If a projection \icode{A.projᵢⱼ x} is used uniquely, then \texttt{x} is used uniquely as well.
 
 \subsubsection{Adjusted constructor rules}
-Using these inference mechanisms, we can define \textsc{Let-Ctor-*} and \textsc{Let-Ctor-!} rules that make it clear which one of the two is applicable and how $[\tau_\arrg']$ are chosen:
+Using these inference mechanisms, we can define \textsc{Let-Ctor-$*$} and \textsc{Let-Ctor-!} rules that make it clear which one of the two is applicable and how $[\tau_\arrg']$ are chosen:
 \begin{mathpar}
-	$\inferrule[Let-Ctor-*]{[\nz(Z, \icode{y})]
-		\\ (\gamma(A), \icode{i}, [\tau], \icode{[$\tau_\arrg$?]}) \in \dom(\inferTypeArgs)
-		\\ [\tau_\arrg'] = \inferTypeArgs(\gamma(A), \icode{i}, [\tau], \icode{[$\tau_\arrg$?]})
-		\\ \gamma(A)\{A, [\tau_\arrg']\}_\icode{i} = [\tau] \to *x^\kappa_\adt
+	$\inferrule[Let-Ctor-$*$]{[\nz(Z, \icode{y})]
+		\\ (\gamma(\icode{A}), \icode{i}, [\tau], \icode{[$\tau_\arrg$?]}) \in \dom(\inferTypeArgs)
+		\\ [\tau_\arrg'] = \inferTypeArgs(\gamma(\icode{A}), \icode{i}, [\tau], \icode{[$\tau_\arrg$?]})
+		\\ \gamma(\icode{A})\{\icode{A}, [\tau_\arrg']\}_\icode{i} = [\tau] \to *x^\kappa_\adt
 		\\ \icode{x} \in \uniqueUses(\icode{F}, \tret)
-		\\ Z; \Gamma, \icode{z} : *\ A\ [\tau_\arrg'] \vdash \icode{F} : \tret
+		\\ Z; \Gamma, \icode{z} : *\ \icode{A}\ [\tau_\arrg'] \vdash \icode{F} : \tret
 	}
 	{Z; \Gamma, [\icode{y} : \tau] \vdash \icode{let x = (A [$\tau_\arrg$?]).ctorᵢ [y]; F} : \tret}$
 \end{mathpar}
 \begin{mathpar}
 	$\inferrule[Let-Ctor-!]{[\nz(Z, \icode{y})]
-		\\ (\gamma(A), \icode{i}, [!\tau], \icode{[$\tau_\arrg$?]}) \in \dom(\inferTypeArgs)
-		\\ [\tau_\arrg'] = \inferTypeArgs(\gamma(A), \icode{i}, [!\tau], \icode{[$\tau_\arrg$?]})
-		\\ \gamma(A)\{A, [\tau_\arrg']\}_\icode{i} = [\tau] \to *x^\kappa_\adt
+		\\ (\gamma(\icode{A}), \icode{i}, [!\tau], \icode{[$\tau_\arrg$?]}) \in \dom(\inferTypeArgs)
+		\\ [\tau_\arrg'] = \inferTypeArgs(\gamma(\icode{A}), \icode{i}, [!\tau], \icode{[$\tau_\arrg$?]})
+		\\ \gamma(\icode{A})\{\icode{A}, [\tau_\arrg']\}_\icode{i} = [\tau] \to *x^\kappa_\adt
 		\\ \icode{x} \notin \uniqueUses(\icode{F}, \tret)
-		\\ Z; \Gamma, \icode{z} :\ !\ A\ [!\tau_\arrg'] \vdash \icode{F} : \tret
+		\\ Z; \Gamma, \icode{z} :\ !\ \icode{A}\ [!\tau_\arrg'] \vdash \icode{F} : \tret
 	}
 	{Z; \Gamma, [\icode{y} :\ !\tau] \vdash \icode{let x = (A [$\tau_\arrg$?]).ctorᵢ [y]; F} : \tret}$
 \end{mathpar}
-\textsc{Let-Ctor-*} is applicable if \texttt{x} is used in a unique manner. After inferring the type arguments using inferTypeArgs, we substitute them in $\gamma(A)$ and check whether the resulting types for the fields match those of our initial arguments that we used for inference. This is because while $(\gamma(A), i, [\tau], [\tau_\arrg?]) \in \dom(\inferTypeArgs)$ is always true if $\tau$ is applicable to $\tau_\field$, it may still be true if $\tau$ is not applicable to $\tau_\field$, as inferTypeArgs is ignoring the self-variable $x_\adt^\kappa$ in $\gamma(A)$. When applying the rule, we consume the arguments and gain a new unique instance of the ADT type in return. \textsc{Let-Ctor-!} is similar and applicable if \texttt{x} is not used in a unique manner, in which case the new instance of the ADT is created as shared and we only demand the arguments \texttt{[y]} to be shared as well.
+
+\textsc{Let-Ctor-$*$} is applicable if \texttt{x} is used in a unique manner. After inferring the type arguments using inferTypeArgs, we substitute them in $\gamma(\icode{A})$ and check whether the resulting types for the fields match those of our initial arguments that we used for inference. This is because while $(\gamma(\icode{A}), i, [\tau], [\tau_\arrg?]) \in \dom(\inferTypeArgs)$ is always true if a type $\tau$ is applicable to the corresponding constructor argument, it may still be true if $\tau$ is not applicable to the constructor argument, as inferTypeArgs is ignoring attributes and self-variables $x_\adt^\kappa$ in $\gamma(\icode{A})$. When applying the rule, we consume the arguments and gain a new unique instance of the ADT type in return. 
+
+\textsc{Let-Ctor-!} is similar and applicable if \texttt{x} is not used in a unique manner, in which case the new instance of the ADT is created as shared and we only need to demand the arguments \texttt{[y]} to be shared.
 
 \section{Examples}\label{sec:examples}
-In this section, we will cover the implementations of a few Lean functions, some of which we have seen previously, and demonstrate features of our type checker using them.
+In this section, we will cover the implementations of a few Lean functions, some of which we have seen previously, and demonstrate features of our type checker using them as examples.
 
 \subsubsection{List.map}
 Recall our implementation of \lstinline|List.map| from \Cref{sec:lean4}, augmented with uniqueness annotations where we want types to be unique:\\
@@ -158,9 +155,10 @@ def List.map (f : α → β) : *List α → *List β
   | []      => []
   | x :: xs => f x :: map f xs
 \end{code}
+
 \lstinline|List.map| translates to the following IR code:\\
 \begin{ifcode}
-List.map f xs = case' xs of
+List.map f xs = List.case' xs of
   ctor₀ ⇒
     let nil := (List [! $\blacksquare$]).ctor₀;
     ret nil
@@ -173,7 +171,6 @@ List.map f xs = case' xs of
 
 We have the following global context:
 \begin{align*}
-	\delta &= \{\texttt{List.map} \mapsto \lambda\ \texttt{f}\ \texttt{xs}.\ \texttt{List.map}\ \texttt{f}\ \texttt{xs}\} \\
 	\gamma &= \{\List \mapsto \mu\ \List.\ *\List \sep [\alpha, *\List] \to *\List\} \\
 	\delta_\tau &= \{\texttt{List.map} \mapsto ([!(!\ \blacksquare \to\ !\ \blacksquare), *\List\ [!\ \blacksquare]] \to *\List\ [!\ \blacksquare])\} \\
 	\gamma_{*_e} &= \emptyset \\
@@ -186,9 +183,10 @@ Our escape analysis produces the following output:
 \begin{align*}
 	\delta_Q(\icode{List.map}) &= \left\{\icode{f}_{[]}, \icode{f}_{[]} @ [t_1], \icode{xs}_{[10]}, \icode{xs}_{[11]} @ [t_2] \right\} \\
 	\text{where } t_1 &= [\#\text{param}\ 0, \#\text{app}, \#\text{case}\ 1, \#\text{const}\ \icode{List.map}] \\
-	t_2 &= [\#\text{param}\ 1, \#\text{app}, \#\text{case}\ 1, \#\text{const}\ \icode{List.map}]
+	\text{and } t_2 &= [\#\text{param}\ 1, \#\text{app}, \#\text{case}\ 1, \#\text{const}\ \icode{List.map}]
 \end{align*}
-Hence, even if the outer input List attribute was shared, we would not be able to borrow the argument, as our escape analysis approximates that the tail of \texttt{xs} can escape, which would be unique if we were to borrow a unique List to \texttt{xs}.
+
+Hence, even if the outer input List attribute was shared, we would not be able to borrow the argument: Our escape analysis approximates that the tail of \texttt{xs} can escape, which would be unique if we were to borrow a unique List to \texttt{xs}.
 
 \subsubsection{List.get?}
 We will now cover our implementation of \lstinline|List.get?| from \Cref{sec:lean4} to demonstrate constructor argument type inference and an issue with our implementation of borrowing, augmented with uniqueness annotations where we want types to be unique:\\
@@ -198,9 +196,10 @@ def List.get? : List α → Nat → *Option α
   | x :: _,  0     => Option.some x
   | _ :: xs, n + 1 => List.get? xs n
 \end{code}
+
 It translates to the following IR code:\\
 \begin{ifcode}
-List.get? xs i = case' of
+List.get? xs i = List.case' of
   ctor₀ ⇒
     let none := (Option [! $\blacksquare$]).ctor₀;
     ret none
@@ -220,7 +219,7 @@ List.get? xs i = case' of
 \newcommand{\Option}{\mathrm{Option}}
 \newcommand{\Nat}{\mathrm{Nat}}
 \newcommand{\Bool}{\mathrm{Bool}}
-The program is simply $\delta = \{\texttt{List.get?} \mapsto \lambda\ \texttt{xs}\ \texttt{i}.\ \texttt{List.get?}\ \texttt{xs}\ \texttt{i}\}$. Our types are as follows:
+Our types are as follows:
 \begin{align*}
 	\gamma &= \left\{\begin{aligned}
 		\List &\mapsto \mu\ \List.\ &*\List &\sep [\alpha, *\List] \to *\List \\
@@ -233,17 +232,15 @@ The program is simply $\delta = \{\texttt{List.get?} \mapsto \lambda\ \texttt{xs
 		\icode{Nat.pred} &\mapsto [!\Nat\ []] &&\to\ !\Nat\ []
 	\end{aligned}\right\}
 \end{align*}
-For simplicity, we assume that Nat and Bool are external types. Furthermore, we provide no escapee information:
-\begin{align*}
-	\gamma_{*_e} &= \emptyset\\
-	\delta_{q_e} &= \emptyset
-\end{align*}
+
+For simplicity, we assume that Nat and Bool are external types. Furthermore, we provide no escapee information, using both $\gamma_{*_e} = \emptyset$ and $\delta_{q_e} = \emptyset$.
 
 With these declarations, we can check $\vdash \delta_\tau$. Note that the type for the \texttt{Option.some} call can be inferred. Our escape analysis computes the following information:
 \begin{alignat*}{1}
 	\delta_Q(\icode{List.get?}) &= \left\{\icode{xs}_{[10]}, \icode{xs}_{[11]} @ [t] \right\} \text{ for some } t
 \end{alignat*}
-This means that a unique argument that is passed to \icode{xs} cannot be borrowed, as one of its unique fields $\icode{xs}_{[11]}$ is approximated to escape by our escape analysis.
+
+This means that a unique argument that is passed to \icode{xs} cannot be borrowed, as one of its unique fields $\icode{xs}_{[11]}$ is approximated to escape by our escape analysis. Our method of widening is too aggressive because the underlying lattice lacks expressivity --- if we could widen the escapees $\icode{xs}_{[11, 10]}$ and $\icode{xs}_{[10]}$ to something like $\icode{xs}_{[*, 10]}$ or $\icode{xs}_{[(11)*, 10]}$ instead, where $*$ represents any path in the former and a Kleene star in the latter, then we could exclude $\icode{xs}_{[11]}$ as an escapee. We will briefly revisit this idea in \Cref{sec:futureborrowing}.
 
 \subsubsection{Array.transpose}
 Finally, we will cover a more complex example that shows off nested uniqueness attributes and external types. We intend to check the following function that transposes a two-dimensional square matrix:\\
@@ -266,7 +263,8 @@ def Array.T! (xs : *Array (*Array α)) (i j : Nat)
     let xs := Array.set'! xs j xs_j
     Array.T! xs i (j + 1)
 \end{code}
-We assume that \texttt{Array.T!} is always called with a square matrix and $\texttt{i} = 0$ and $\texttt{j} = 1$ at the start. For brevity, we omit the equivalent IR code. The program is simply $\delta = \{\texttt{Array.T!} \mapsto \lambda\ \texttt{xs}\ \texttt{i}\ \texttt{j}.\ \texttt{Array.T!}\ \texttt{xs}\ \texttt{i}\ \texttt{j}\}$.
+
+We assume that \texttt{Array.T!} is always called with a square matrix using $\texttt{i} = 0$ and $\texttt{j} = 1$ at the start. For brevity, we omit the equivalent IR code.
 
 \newcommand{\Tuple}{\mathrm{Tuple}}
 We have the following algebraic data types:
@@ -276,6 +274,7 @@ We have the following algebraic data types:
 		\Tuple &\mapsto \mu\ \Tuple.\ [\alpha, \beta] \to *\Tuple
 	\end{aligned}\right\}
 \end{align*}
+
 The types we assign to constants in the program in the \icode{Array} namespace are as follows:
 \begin{align*}
 	\delta_\tau(\icode{Array.*}) &= \left\{\begin{aligned}
@@ -290,6 +289,7 @@ The types we assign to constants in the program in the \icode{Array} namespace a
 		\icode{set'!} &\mapsto [*\Array\ [*\ \blacksquare],\ !\Nat\ [], *\ \blacksquare] \to *\Array\ [*\ \blacksquare]
 	\end{aligned}\right\}
 \end{align*}
+
 For operations on natural numbers, we have:
 \begin{align*}
 	\delta_\tau(\icode{Nat.*}) &= \left\{\begin{aligned}
@@ -305,11 +305,12 @@ For operations on natural numbers, we have:
 	\gamma_{*_e} &= \{\Array \mapsto [00](\alpha)\} \\
 	\delta_{q_e} &= \left\{\texttt{Array.size} \mapsto \emptyset, \texttt{Array.get!} \mapsto \{\texttt{xs}_{[00]}\}\right\}
 \end{align*}
+
 Here, $\alpha$ denotes the first type parameter of \texttt{Array} and \texttt{xs} denotes the first parameter of \texttt{Array.get!}.
 
 Using these definitions, we can check $\vdash \delta_\tau$. The following aspects are noteworthy about this example: 
 \begin{itemize}
-	\item \texttt{xs} is successfully borrowed in the applications of \texttt{Array.size} and \texttt{Array.get!}. Without borrowing, this definition would not type check, as \texttt{xs} would be consumed on application of these functions.
+	\item \texttt{xs} is successfully borrowed in the applications of \texttt{Array.size} and \texttt{Array.get!}. Without borrowing, this definition would not type-check, as \texttt{xs} would be consumed on application of these functions.
 	\item The \texttt{Array.swap} function ensures that the inner uniqueness is retained by swapping in a unique value that takes the place of the value in the array. When using the \texttt{Array.swap} function, we must be careful to maintain $\icode{i} \neq \icode{j}$, as we would otherwise access the same index twice.
 	\item Since we lack polymorphism, we have two separate \texttt{Array.set!} functions, depending on whether the inner attribute is shared or unique.
 \end{itemize}

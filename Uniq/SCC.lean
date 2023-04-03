@@ -29,7 +29,7 @@ namespace IR.CG
                   -- for escape analysis where papp doesn't play a role
       callees ++ computeCallees rest
     | .case _ cases => cases.data.map computeCallees |>.join
-    | .case' _ cases => cases.data.map (fun ⟨_, _, body⟩ => computeCallees body) |>.join
+    | .case' _ _ cases => cases.data.map (fun ⟨_, _, body⟩ => computeCallees body) |>.join
 
   def computeCallGraph (p : Program) : Lean.RBMap Const CGNode compare := Id.run do
     let mut r := Lean.mkRBMap _ _ _
@@ -111,13 +111,13 @@ namespace IR.SCC
     sccs
 
   section Test
-    def f0 : Function := ⟨1, ilet 1 ≔ iapp 1 @@ #[0]; iret 1⟩
-    def f1 : Function := ⟨1, ilet 1 ≔ iapp 0 @@ #[0]; iret 1⟩
-    def f2 : Function := ⟨1, ilet 1 ≔ iapp 1 @@ #[0]; ilet 2 ≔ iapp 0 @@ #[0]; iret 1⟩
-    def f3 : Function := ⟨1, ilet 1 ≔ iapp 2 @@ #[0]; iret 1⟩
-    def f4 : Function := ⟨1, ilet 1 ≔ iapp 6 @@ #[0]; iret 1⟩
-    def f5 : Function := ⟨1, ilet 1 ≔ iapp 2 @@ #[0]; ilet 2 ≔ iapp 6 @@ #[0]; ilet 2 ≔ iapp 4 @@ #[0]; iret 1⟩
-    def f6 : Function := ⟨1, ilet 1 ≔ iapp 5 @@ #[0]; iret 1⟩
+    def f0 : Function := ⟨1, ilet 1 ≔ .app 1 #[0]; iret 1⟩
+    def f1 : Function := ⟨1, ilet 1 ≔ .app 0 #[0]; iret 1⟩
+    def f2 : Function := ⟨1, ilet 1 ≔ .app 1 #[0]; ilet 2 ≔ .app 0 #[0]; iret 1⟩
+    def f3 : Function := ⟨1, ilet 1 ≔ .app 2 #[0]; iret 1⟩
+    def f4 : Function := ⟨1, ilet 1 ≔ .app 6 #[0]; iret 1⟩
+    def f5 : Function := ⟨1, ilet 1 ≔ .app 2 #[0]; ilet 2 ≔ .app 6 #[0]; ilet 2 ≔ .app 4 #[0]; iret 1⟩
+    def f6 : Function := ⟨1, ilet 1 ≔ .app 5 #[0]; iret 1⟩
   
     #eval IO.println <| computeSCCs <| computeCallGraph <| Lean.RBMap.ofList (.zip (List.range 7) [f0, f1, f2, f3, f4, f5, f6])
   end Test

@@ -23,9 +23,6 @@
 \usepackage{placeins}
 \usepackage{float}
 
-\usepackage{lineno}
-\linenumbers
-
 \makeatletter
 \setlength{\@fptop}{0pt}
 \setlength{\@fpbot}{0pt plus 1fil}
@@ -126,10 +123,10 @@
 \vfill
 
 \begin{otherlanguage}{ngerman}
-Der Lean 4 Theorembeweiser, welcher auch als vollwertige Programmiersprache verwendbar ist, implementiert eine auf Referenzzählung basierende Optimierung, die das destruktive Mutieren von pur-funktionalen Werten ermöglicht: Wenn der Referenzzähler eines Werts gleich 1 ist, dann kann dieser sicher an Ort und Stelle mutiert werden. Das Greifen dieser Optimierung ist insbesondere für Arrays unabdingbar, da dort die einzige Alternative zu einer Mutation das vollständige Kopieren des Arrays ist. Um das Greifen dieser Optimierung zu garantieren, mustern wir den Entwurfsraum der substrukturellen Typtheorien und implementieren eine eigene Uniqueness-Typtheorie für ein Modell einer Zwischenrepräsentation von Lean 4. Unsere Typtheorie unterstützt Uniqueness-Typen, algebraische Datentypen, gelöschte Typen, externe Deklarationen, Subtyping von Uniqueness-Attributen und einen Borrowing-Mechanismus, welcher mittels einer Escape-Analyse implementiert ist.
+Der Lean 4 Theorembeweiser, welcher auch als vollwertige Programmiersprache verwendbar ist, implementiert eine auf Referenzzählung basierende Optimierung, die das destruktive Mutieren von pur-funktionalen Werten ermöglicht: Wenn der Referenzzähler eines Werts gleich 1 ist, dann kann dieser sicher an Ort und Stelle mutiert werden. Das Greifen dieser Optimierung ist insbesondere für Arrays unabdingbar, da dort die einzige Alternative zu einer Mutation das vollständige Kopieren des Arrays ist. Um das Greifen dieser Optimierung zu garantieren, mustern wir den Entwurfsraum der substrukturellen Typtheorien und implementieren eine eigene Uniqueness-Typtheorie für ein Modell einer Zwischenrepräsentation von Lean 4. Unsere Typtheorie unterstützt Uniqueness-Typen, algebraische Datentypen, gelöschte Typen, externe Deklarationen, Subtyping von Uniqueness-Attributen und einen Borrowing-Mechanismus, welcher mittels einer Escape-Datenflussanalyse implementiert ist.
 \end{otherlanguage}
 \vfill
-The Lean 4 theorem prover and programming language implements an optimization based on reference counting that allows for destructively updating purely functional values: If the reference count of a value is equal to 1, it can be safely updated in-place. Especially for arrays, where the only alternative to an in-place update is a full copy of the array, it is essential that this optimization always applies. To ensure this, we survey the design space of substructural type theory and implement a uniqueness type theory of our own. Our type theory targets a model of an intermediate representation for Lean 4. It supports uniqueness types, algebraic data types, erased types, external declarations, subtyping for uniqueness attributes and a borrowing mechanism that is implemented using an escape analysis.
+The Lean 4 theorem prover and programming language implements an optimization based on reference counting that allows for destructively updating purely functional values: If the reference count of a value is equal to 1, it can be safely updated in-place. Especially for arrays, where the only alternative to an in-place update is a full copy of the array, it is essential that this optimization always applies. To ensure this, we survey the design space of substructural type theory and implement a uniqueness type theory of our own. Our type theory targets a model of an intermediate representation for Lean 4. It supports uniqueness types, algebraic data types, erased types, external declarations, subtyping for uniqueness attributes and a borrowing mechanism that is implemented using an escape data-flow analysis.
 \vfill
 \end{abstract}
 
@@ -171,6 +168,7 @@ die Satzung des KIT zur Sicherung guter wissenschaftlicher Praxis beachtet habe.
 	\fancyfoot[RO]{\thepage\ \includegraphics[height=8pt]{balloon.pdf}}
 }
 \thispagestyle{balloon}
+I am thankful to Muhammet Gümüş, Markus Himmel and Paul Reichert for working through a draft of this thesis and providing helpful feedback. I am especially grateful to Achim Kriso for our repeated conversations about substructural type theory, without which I would have lacked many of the insights that went into the design of the type theory presented here. I would also like to thank my thesis advisor Sebastian Ullrich for getting me interested in Lean, always having an open ear and providing guidance for anything Lean-related, all the way through my bachelor's thesis, my master's studies and eventually my master's thesis. Finally, I am very grateful to my parents for supporting me all the way through university.
 \pagestyle{empty}
 
 \end{document}

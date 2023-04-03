@@ -7,7 +7,7 @@ namespace IR
     | papp (c : Const) (args : Array Var)
     | vapp (x y : Var)
     | ctor (adtName : ADTName) (typeParams : Array (Option Types.AttrType)) (ctor : Ctor) (params : Array Var)
-    | proj (ctor : Ctor) (proj : Proj) (var : Var)
+    | proj (adtName : ADTName) (ctor : Ctor) (proj : Proj) (var : Var)
   deriving Inhabited
 
   def printExpr : Expr → String
@@ -15,7 +15,7 @@ namespace IR
     | .papp c args => s!"papp {c} {args}"
     | .vapp x y => s!"vapp {x} {y}"
     | .ctor adtName typeParams ctor params => s!"ctor {adtName} {typeParams} {ctor} {params}"
-    | .proj ctor proj var => s!"proj {ctor} {proj} {var}"
+    | .proj adtName ctor proj var => s!"proj {adtName} {ctor} {proj} {var}"
 
   instance : ToString Expr where
     toString := printExpr
@@ -24,32 +24,27 @@ namespace IR
     | ret   (var : Var)
     | «let» (var : Var) (expr : Expr) (rest : FnBody)
     | case  (var : Var) (cases : Array FnBody)
-    | case' (var : Var) (cases : Array (Ctor × Array Var × FnBody))
+    | case' (adtName : ADTName) (var : Var) (cases : Array (Ctor × Array Var × FnBody))
   deriving Inhabited
 
   partial def printFnBody : FnBody → String
     | .ret var => s!"ret {var}"
     | .«let» var expr rest => s!"{var} ≔ {expr}; {printFnBody rest}"
     | .case var cases => s!"\ncase {var}:\n{cases.map printFnBody |>.data |> String.intercalate ";\n"}"
-    | .case' var cases => s!"\ncase' {var}:\n{cases.map (fun (ctor, fields, case) => s!"{ctor} {fields} => {printFnBody case}") |>.data |> String.intercalate ";\n"}"
+    | .case' adtName var cases => s!"\n{adtName}.case' {var}:\n{cases.map (fun (ctor, fields, case) => s!"{ctor} {fields} => {printFnBody case}") |>.data |> String.intercalate ";\n"}"
 
   def FnBody.printHead : FnBody → String
     | .ret var => s!"ret {var}"
     | .«let» var expr _ => s!"{var} ≔ {expr}; ..."
     | .case var _ => s!"case {var}: ..."
-    | .case' var _ => s!"case' {var}: ..."
+    | .case' adtName var _ => s!"{adtName}.case' {var}: ..."
 
   instance : ToString FnBody where
     toString := printFnBody
 
-  notation "iapp " t1 "@@" t2 => Expr.app t1 t2
-  notation "ipapp " t1 "@@" t2 => Expr.papp t1 t2
-  notation "ivapp " t1 "@@" t2 => Expr.vapp t1 t2
-  notation "ictor " t1 "⟦" t2 "⟧" t3 "@@" t4 => Expr.ctor t1 t2 t3  t4
-  notation "iproj " t1 "#" t2 "@@" t3 => Expr.proj t1 t2 t3
   notation "iret " t1 => FnBody.ret t1
   notation "icase " t1 ": " t2 => FnBody.case t1 t2
-  notation "icase' " t1 ": " t2 => FnBody.case' t1 t2
+  notation t0 "․icase' " t1 ": " t2 => FnBody.case' t0 t1 t2
   notation "ilet " t1 " ≔ " t2 "; " rest => FnBody.«let» t1 t2 rest
 
   structure Function where
