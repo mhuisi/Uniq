@@ -1,9 +1,14 @@
 thesis/build
 present/build
+present/present.pdf
 thesis/thesis.pdf
 thesis/*.log
 present/present.pdf
 *.aux
+*.log
+*.nav
+*.snm
+*.vrb
 *.bbl
 *.blg
 *.out
